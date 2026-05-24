@@ -61,4 +61,9 @@ import Testing
     #expect(EventType.prompted.rawValue == "prompted")
     #expect(EventType.intention.rawValue == "intention")
     #expect(EventType.skipped.rawValue == "skipped")
+    #expect(EventType.pomodoroCompleted.rawValue == "pomodoro_completed")
+    #expect(EventType.pomodoroEndedEarly.rawValue == "pomodoro_ended_early")
+    #expect(EventType.checkInDone.rawValue == "check_in_done")
+    #expect(EventType.checkInNotDone.rawValue == "check_in_not_done")
+    #expect(EventType.checkInSkipped.rawValue == "check_in_skipped")
 }

@@ -7,6 +7,11 @@ enum EventType: String {
     case prompted
     case intention
     case skipped
+    case pomodoroCompleted = "pomodoro_completed"
+    case pomodoroEndedEarly = "pomodoro_ended_early"
+    case checkInDone = "check_in_done"
+    case checkInNotDone = "check_in_not_done"
+    case checkInSkipped = "check_in_skipped"
 }
 
 struct LogEntry {
