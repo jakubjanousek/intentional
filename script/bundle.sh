@@ -28,6 +28,12 @@ mkdir -p "$APP/Contents/Resources"
 cp "$BINARY" "$APP/Contents/MacOS/Intentional"
 cp "$INFO_PLIST" "$APP/Contents/Info.plist"
 
+echo "→ rendering icon"
+ICONSET_DIR="$(mktemp -d)/Intentional.iconset"
+swift script/make-icon.swift "$ICONSET_DIR"
+iconutil -c icns "$ICONSET_DIR" -o "$APP/Contents/Resources/Intentional.icns"
+rm -rf "$(dirname "$ICONSET_DIR")"
+
 # Ad-hoc sign so SMAppService and Gatekeeper can identify the binary.
 codesign --force --sign - --identifier "com.jakubjanousek.intentional" "$APP"
 
