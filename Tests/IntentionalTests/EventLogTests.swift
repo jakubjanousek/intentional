@@ -2,9 +2,27 @@ import Foundation
 import Testing
 @testable import Intentional
 
-@Test func formatProducesISO8601TabbedLine() {
+@Test func formatProducesJSONLineForSimpleEvent() {
     let entry = LogEntry(timestamp: Date(timeIntervalSince1970: 1_700_000_000), type: .unlock)
-    #expect(EventLog.format(entry) == "2023-11-14T22:13:20Z\tunlock")
+    #expect(EventLog.format(entry) == #"{"ts":"2023-11-14T22:13:20Z","type":"unlock"}"#)
+}
+
+@Test func formatIncludesIntentionPayload() {
+    let entry = LogEntry(
+        timestamp: Date(timeIntervalSince1970: 1_700_000_000),
+        type: .intention,
+        intention: "write tests"
+    )
+    #expect(EventLog.format(entry) == #"{"ts":"2023-11-14T22:13:20Z","type":"intention","intention":"write tests"}"#)
+}
+
+@Test func formatEscapesQuotesAndBackslashesInIntention() {
+    let entry = LogEntry(
+        timestamp: Date(timeIntervalSince1970: 1_700_000_000),
+        type: .intention,
+        intention: #"reply to "Anna" \ then ship"#
+    )
+    #expect(EventLog.format(entry) == #"{"ts":"2023-11-14T22:13:20Z","type":"intention","intention":"reply to \"Anna\" \\ then ship"}"#)
 }
 
 @Test func appendWritesLinesInOrder() throws {
@@ -17,7 +35,11 @@ import Testing
     try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 1_700_000_010), type: .lock))
 
     let contents = try String(contentsOf: url, encoding: .utf8)
-    #expect(contents == "2023-11-14T22:13:20Z\tunlock\n2023-11-14T22:13:30Z\tlock\n")
+    #expect(contents == """
+        {"ts":"2023-11-14T22:13:20Z","type":"unlock"}
+        {"ts":"2023-11-14T22:13:30Z","type":"lock"}
+
+        """)
 }
 
 @Test func appendCreatesParentDirectory() throws {
@@ -30,4 +52,13 @@ import Testing
     try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 1_700_000_000), type: .started))
 
     #expect(FileManager.default.fileExists(atPath: url.path))
+}
+
+@Test func supportsAllEventTypes() {
+    #expect(EventType.started.rawValue == "started")
+    #expect(EventType.unlock.rawValue == "unlock")
+    #expect(EventType.lock.rawValue == "lock")
+    #expect(EventType.prompted.rawValue == "prompted")
+    #expect(EventType.intention.rawValue == "intention")
+    #expect(EventType.skipped.rawValue == "skipped")
 }

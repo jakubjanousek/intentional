@@ -2,12 +2,10 @@ import AppKit
 
 @MainActor
 final class UnlockMonitor {
-    private let log: EventLog
-    private var observers: [NSObjectProtocol] = []
+    var onUnlock: ((Date) -> Void)?
+    var onLock: ((Date) -> Void)?
 
-    init(log: EventLog) {
-        self.log = log
-    }
+    private var observers: [NSObjectProtocol] = []
 
     func start() {
         let center = DistributedNotificationCenter.default()
@@ -16,22 +14,14 @@ final class UnlockMonitor {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.record(.unlock) }
+            MainActor.assumeIsolated { self?.onUnlock?(Date()) }
         })
         observers.append(center.addObserver(
             forName: .init("com.apple.screenIsLocked"),
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.record(.lock) }
+            MainActor.assumeIsolated { self?.onLock?(Date()) }
         })
-    }
-
-    private func record(_ type: EventType) {
-        do {
-            try log.append(LogEntry(timestamp: Date(), type: type))
-        } catch {
-            NSLog("Intentional: failed to log \(type): \(error)")
-        }
     }
 }

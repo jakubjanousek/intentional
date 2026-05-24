@@ -1,9 +1,12 @@
 import AppKit
 
+@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let log = EventLog(fileURL: EventLog.defaultLocation())
     private var statusItem: NSStatusItem!
     private var unlockMonitor: UnlockMonitor!
+    private var promptPanel: IntentionPromptPanel!
+    private var gate = UnlockGate()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -15,6 +18,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let menu = NSMenu()
+        menu.addItem(NSMenuItem(
+            title: "Prompt Now",
+            action: #selector(promptNow),
+            keyEquivalent: "p"
+        ))
         menu.addItem(NSMenuItem(
             title: "Reveal Log in Finder",
             action: #selector(revealLog),
@@ -28,10 +36,50 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ))
         statusItem.menu = menu
 
-        unlockMonitor = UnlockMonitor(log: log)
+        promptPanel = IntentionPromptPanel()
+
+        unlockMonitor = UnlockMonitor()
+        unlockMonitor.onUnlock = { [weak self] date in self?.handleUnlock(at: date) }
+        unlockMonitor.onLock = { [weak self] date in self?.handleLock(at: date) }
         unlockMonitor.start()
 
-        try? log.append(LogEntry(timestamp: Date(), type: .started))
+        write(LogEntry(timestamp: Date(), type: .started))
+    }
+
+    private func handleUnlock(at date: Date) {
+        write(LogEntry(timestamp: date, type: .unlock))
+        guard gate.shouldPrompt(unlockAt: date) else { return }
+        showPrompt(at: date)
+    }
+
+    private func handleLock(at date: Date) {
+        write(LogEntry(timestamp: date, type: .lock))
+        gate.recordLock(at: date)
+    }
+
+    @objc private func promptNow() {
+        showPrompt(at: Date())
+    }
+
+    private func showPrompt(at date: Date) {
+        write(LogEntry(timestamp: date, type: .prompted))
+        gate.recordPrompt(at: date)
+        promptPanel.present(
+            onStart: { [weak self] intention in
+                self?.write(LogEntry(timestamp: Date(), type: .intention, intention: intention))
+            },
+            onSkip: { [weak self] in
+                self?.write(LogEntry(timestamp: Date(), type: .skipped))
+            }
+        )
+    }
+
+    private func write(_ entry: LogEntry) {
+        do {
+            try log.append(entry)
+        } catch {
+            NSLog("Intentional: failed to log \(entry.type.rawValue): \(error)")
+        }
     }
 
     @objc private func revealLog() {
