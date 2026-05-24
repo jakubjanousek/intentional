@@ -69,6 +69,33 @@ Two non-obvious design calls:
 - **One-week manual validation first** — you've made the call to build.
   Settings escape hatch is the reversibility plan.
 
+## Visual Direction
+**shadcn-minimal with two Mac-native touches.** Calm, dense, low-chrome by
+default; the platform shows through only where it earns its keep.
+
+- **Type:** SF Pro for UI body text; Geist Mono (or SF Mono) for the
+  timer and the user's typed intention.
+- **Color:** near-black / near-white surfaces, system grays for hierarchy,
+  **one accent only** — warm amber, used *exclusively* to signal "a
+  pomodoro is currently running." Not for buttons, links, or hover.
+- **Mac-native touch #1:** unlock panel uses `NSVisualEffectView`
+  (`.hudWindow` material). Glass appears at the one moment it matters —
+  the transition from locked to active. Every other surface is flat.
+- **Mac-native touch #2:** menu bar icon is a custom ring that fills
+  clockwise as the pomodoro elapses. Glanceable progress from across the
+  screen, no badge or number needed.
+
+**Four surfaces:**
+- Unlock prompt — translucent panel, one text field, "Start" / "Skip"
+  buttons, `⌘↵` to submit.
+- Menu bar — the ring icon; click opens a 240px dropdown with current
+  intention, time remaining, "End early."
+- End-of-pomodoro check-in — small notification-style card, "Did you do
+  it?" + Y/N. Auto-dismisses after 10s (counts as skipped — skips are
+  data).
+- Settings — shadcn-style form, one column, no tabs, no icons next to
+  labels.
+
 ## Open Questions
 - Debounce rule for "what counts as an unlock worth prompting?" — first
   guess: only if locked >5 min, or first unlock after 4am.
