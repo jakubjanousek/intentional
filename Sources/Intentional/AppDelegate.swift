@@ -54,6 +54,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func applySettings() {
         gate.minLockDuration = settings.debounceInterval
         gate.dailyResetHour = settings.dailyResetHour
+        syncLaunchAtLogin()
+    }
+
+    private func syncLaunchAtLogin() {
+        guard LaunchAtLogin.isAvailable else { return }
+        do {
+            try LaunchAtLogin.setEnabled(settings.launchAtLogin)
+        } catch {
+            NSLog("Intentional: launch-at-login sync failed: \(error)")
+            settings.launchAtLogin = false
+        }
     }
 
     func settingsDidChange() {

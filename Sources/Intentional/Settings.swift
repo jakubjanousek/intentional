@@ -9,6 +9,7 @@ struct Settings {
         static let pomodoro = "pomodoroMinutes"
         static let debounce = "debounceMinutes"
         static let dailyReset = "dailyResetHour"
+        static let launchAtLogin = "launchAtLogin"
     }
 
     let defaults: UserDefaults
@@ -30,6 +31,11 @@ struct Settings {
     var dailyResetHour: Int {
         get { read(Key.dailyReset, default: 4, in: Self.dailyResetRange) }
         set { defaults.set(Self.dailyResetRange.clamping(newValue), forKey: Key.dailyReset) }
+    }
+
+    var launchAtLogin: Bool {
+        get { defaults.bool(forKey: Key.launchAtLogin) }
+        set { defaults.set(newValue, forKey: Key.launchAtLogin) }
     }
 
     var pomodoroDuration: TimeInterval { TimeInterval(pomodoroMinutes * 60) }

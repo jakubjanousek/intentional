@@ -13,10 +13,11 @@ final class SettingsWindow {
     private let pomodoroValueLabel = NSTextField(labelWithString: "")
     private let debounceValueLabel = NSTextField(labelWithString: "")
     private let dailyResetValueLabel = NSTextField(labelWithString: "")
+    private let launchAtLoginCheckbox = NSButton()
 
     init() {
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 380, height: 220),
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 280),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -49,7 +50,22 @@ final class SettingsWindow {
             action: #selector(didChangeDailyReset)
         )
 
-        let stack = NSStackView(views: [pomodoroRow, debounceRow, dailyResetRow])
+        launchAtLoginCheckbox.setButtonType(.switch)
+        launchAtLoginCheckbox.title = "Launch at login"
+        launchAtLoginCheckbox.target = self
+        launchAtLoginCheckbox.action = #selector(didToggleLaunchAtLogin)
+        if !LaunchAtLogin.isAvailable {
+            launchAtLoginCheckbox.isEnabled = false
+            launchAtLoginCheckbox.toolTip = "Run script/bundle.sh and launch from Intentional.app to enable."
+        }
+
+        let separator = NSBox()
+        separator.boxType = .separator
+        separator.translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = NSStackView(views: [
+            pomodoroRow, debounceRow, dailyResetRow, separator, launchAtLoginCheckbox,
+        ])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 18
@@ -65,6 +81,7 @@ final class SettingsWindow {
             pomodoroRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             debounceRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             dailyResetRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            separator.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
         window.contentView = container
 
@@ -121,6 +138,7 @@ final class SettingsWindow {
         pomodoroStepper.integerValue = settings.pomodoroMinutes
         debounceStepper.integerValue = settings.debounceMinutes
         dailyResetStepper.integerValue = settings.dailyResetHour
+        launchAtLoginCheckbox.state = settings.launchAtLogin ? .on : .off
         refreshLabels()
     }
 
@@ -146,5 +164,17 @@ final class SettingsWindow {
         settings.dailyResetHour = dailyResetStepper.integerValue
         refreshLabels()
         onChange?()
+    }
+
+    @objc private func didToggleLaunchAtLogin() {
+        let wanted = launchAtLoginCheckbox.state == .on
+        do {
+            try LaunchAtLogin.setEnabled(wanted)
+            settings.launchAtLogin = wanted
+            onChange?()
+        } catch {
+            NSLog("Intentional: launch-at-login toggle failed: \(error)")
+            launchAtLoginCheckbox.state = settings.launchAtLogin ? .on : .off
+        }
     }
 }

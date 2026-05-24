@@ -53,6 +53,20 @@ private func freshDefaults() -> UserDefaults {
     #expect(settings.dailyResetHour == 12)
 }
 
+@Test func launchAtLoginDefaultsToFalse() {
+    let settings = Settings(defaults: freshDefaults())
+    #expect(settings.launchAtLogin == false)
+}
+
+@Test func launchAtLoginPersists() {
+    let defaults = freshDefaults()
+    var settings = Settings(defaults: defaults)
+    settings.launchAtLogin = true
+
+    let reloaded = Settings(defaults: defaults)
+    #expect(reloaded.launchAtLogin == true)
+}
+
 @Test func pomodoroDurationDerivesFromMinutes() {
     var settings = Settings(defaults: freshDefaults())
     settings.pomodoroMinutes = 30
