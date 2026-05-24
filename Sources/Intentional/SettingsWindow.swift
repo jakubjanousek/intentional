@@ -10,14 +10,17 @@ final class SettingsWindow {
     private let pomodoroStepper = NSStepper()
     private let debounceStepper = NSStepper()
     private let dailyResetStepper = NSStepper()
+    private let breakStepper = NSStepper()
     private let pomodoroValueLabel = NSTextField(labelWithString: "")
     private let debounceValueLabel = NSTextField(labelWithString: "")
     private let dailyResetValueLabel = NSTextField(labelWithString: "")
+    private let breakValueLabel = NSTextField(labelWithString: "")
     private let launchAtLoginCheckbox = NSButton()
+    private let breaksEnabledCheckbox = NSButton()
 
     init() {
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 380, height: 280),
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 360),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -49,6 +52,19 @@ final class SettingsWindow {
             valueLabel: dailyResetValueLabel,
             action: #selector(didChangeDailyReset)
         )
+        let breakRow = makeRow(
+            label: "Break length",
+            stepper: breakStepper,
+            range: Settings.breakRange,
+            increment: 1,
+            valueLabel: breakValueLabel,
+            action: #selector(didChangeBreakMinutes)
+        )
+
+        breaksEnabledCheckbox.setButtonType(.switch)
+        breaksEnabledCheckbox.title = "Auto-start break after pomodoro"
+        breaksEnabledCheckbox.target = self
+        breaksEnabledCheckbox.action = #selector(didToggleBreaksEnabled)
 
         launchAtLoginCheckbox.setButtonType(.switch)
         launchAtLoginCheckbox.title = "Launch at login"
@@ -64,7 +80,8 @@ final class SettingsWindow {
         separator.translatesAutoresizingMaskIntoConstraints = false
 
         let stack = NSStackView(views: [
-            pomodoroRow, debounceRow, dailyResetRow, separator, launchAtLoginCheckbox,
+            pomodoroRow, debounceRow, dailyResetRow, breakRow,
+            breaksEnabledCheckbox, separator, launchAtLoginCheckbox,
         ])
         stack.orientation = .vertical
         stack.alignment = .leading
@@ -81,6 +98,7 @@ final class SettingsWindow {
             pomodoroRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             debounceRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             dailyResetRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            breakRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             separator.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
         window.contentView = container
@@ -138,14 +156,24 @@ final class SettingsWindow {
         pomodoroStepper.integerValue = settings.pomodoroMinutes
         debounceStepper.integerValue = settings.debounceMinutes
         dailyResetStepper.integerValue = settings.dailyResetHour
+        breakStepper.integerValue = settings.breakMinutes
+        breaksEnabledCheckbox.state = settings.breaksEnabled ? .on : .off
         launchAtLoginCheckbox.state = settings.launchAtLogin ? .on : .off
         refreshLabels()
+        refreshBreakRowEnabled()
     }
 
     private func refreshLabels() {
         pomodoroValueLabel.stringValue = "\(settings.pomodoroMinutes) min"
         debounceValueLabel.stringValue = "\(settings.debounceMinutes) min"
         dailyResetValueLabel.stringValue = String(format: "%02d:00", settings.dailyResetHour)
+        breakValueLabel.stringValue = "\(settings.breakMinutes) min"
+    }
+
+    private func refreshBreakRowEnabled() {
+        let enabled = settings.breaksEnabled
+        breakStepper.isEnabled = enabled
+        breakValueLabel.textColor = enabled ? .secondaryLabelColor : .tertiaryLabelColor
     }
 
     @objc private func didChangePomodoro() {
@@ -163,6 +191,18 @@ final class SettingsWindow {
     @objc private func didChangeDailyReset() {
         settings.dailyResetHour = dailyResetStepper.integerValue
         refreshLabels()
+        onChange?()
+    }
+
+    @objc private func didChangeBreakMinutes() {
+        settings.breakMinutes = breakStepper.integerValue
+        refreshLabels()
+        onChange?()
+    }
+
+    @objc private func didToggleBreaksEnabled() {
+        settings.breaksEnabled = breaksEnabledCheckbox.state == .on
+        refreshBreakRowEnabled()
         onChange?()
     }
 

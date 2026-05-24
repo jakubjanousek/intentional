@@ -72,3 +72,43 @@ private func freshDefaults() -> UserDefaults {
     settings.pomodoroMinutes = 30
     #expect(settings.pomodoroDuration == 30 * 60)
 }
+
+@Test func breakMinutesDefaultsToFive() {
+    let settings = Settings(defaults: freshDefaults())
+    #expect(settings.breakMinutes == 5)
+}
+
+@Test func breakMinutesClampsToValidRange() {
+    var settings = Settings(defaults: freshDefaults())
+    settings.breakMinutes = 0
+    #expect(settings.breakMinutes == 1)
+    settings.breakMinutes = 999
+    #expect(settings.breakMinutes == 30)
+}
+
+@Test func breakMinutesPersists() {
+    let defaults = freshDefaults()
+    var settings = Settings(defaults: defaults)
+    settings.breakMinutes = 12
+    let reloaded = Settings(defaults: defaults)
+    #expect(reloaded.breakMinutes == 12)
+}
+
+@Test func breakDurationDerivesFromMinutes() {
+    var settings = Settings(defaults: freshDefaults())
+    settings.breakMinutes = 7
+    #expect(settings.breakDuration == 7 * 60)
+}
+
+@Test func breaksEnabledDefaultsToTrue() {
+    let settings = Settings(defaults: freshDefaults())
+    #expect(settings.breaksEnabled == true)
+}
+
+@Test func breaksEnabledPersists() {
+    let defaults = freshDefaults()
+    var settings = Settings(defaults: defaults)
+    settings.breaksEnabled = false
+    let reloaded = Settings(defaults: defaults)
+    #expect(reloaded.breaksEnabled == false)
+}

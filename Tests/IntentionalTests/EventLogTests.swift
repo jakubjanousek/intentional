@@ -77,4 +77,7 @@ import Testing
     #expect(EventType.checkInDone.rawValue == "check_in_done")
     #expect(EventType.checkInNotDone.rawValue == "check_in_not_done")
     #expect(EventType.checkInSkipped.rawValue == "check_in_skipped")
+    #expect(EventType.breakStarted.rawValue == "break_started")
+    #expect(EventType.breakCompleted.rawValue == "break_completed")
+    #expect(EventType.breakEndedEarly.rawValue == "break_ended_early")
 }

@@ -12,6 +12,9 @@ enum EventType: String {
     case checkInDone = "check_in_done"
     case checkInNotDone = "check_in_not_done"
     case checkInSkipped = "check_in_skipped"
+    case breakStarted = "break_started"
+    case breakCompleted = "break_completed"
+    case breakEndedEarly = "break_ended_early"
 }
 
 struct LogEntry: Decodable {

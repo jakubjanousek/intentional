@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var intentionItem: NSMenuItem!
     private var remainingItem: NSMenuItem!
     private var endEarlyItem: NSMenuItem!
+    private var endBreakEarlyItem: NSMenuItem!
     private var promptNowItem: NSMenuItem!
     private var runningSeparator: NSMenuItem!
     private var summaryItem: NSMenuItem!
@@ -95,6 +96,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         )
         endEarlyItem.target = self
         menu.addItem(endEarlyItem)
+
+        endBreakEarlyItem = NSMenuItem(
+            title: "End Break Early",
+            action: #selector(endBreakEarly),
+            keyEquivalent: "e"
+        )
+        endBreakEarlyItem.target = self
+        menu.addItem(endBreakEarlyItem)
 
         runningSeparator = NSMenuItem.separator()
         menu.addItem(runningSeparator)
@@ -184,6 +193,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         if pomodoro.isRunning {
             write(LogEntry(timestamp: now, type: .pomodoroEndedEarly))
+        } else if pomodoro.isResting {
+            write(LogEntry(timestamp: now, type: .breakEndedEarly))
         }
 
         write(LogEntry(timestamp: now, type: .intention, intention: intention))
@@ -210,7 +221,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func tick() {
         let now = Date()
         if pomodoro.tick(at: now) {
-            pomodoroDidComplete(at: now)
+            switch pomodoro.state {
+            case .finished:
+                pomodoroDidComplete(at: now)
+            case .idle:
+                restDidComplete(at: now)
+            default:
+                break
+            }
             return
         }
         refreshLiveLabels(now: now)
@@ -218,17 +236,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func endEarly() {
         let now = Date()
+        let intention = pomodoro.currentIntention
         guard pomodoro.endEarly(at: now) else { return }
         write(LogEntry(timestamp: now, type: .pomodoroEndedEarly))
-        finishPomodoro(intention: pomodoro.currentIntention)
-    }
-
-    private func pomodoroDidComplete(at date: Date) {
-        write(LogEntry(timestamp: date, type: .pomodoroCompleted))
-        finishPomodoro(intention: pomodoro.currentIntention)
-    }
-
-    private func finishPomodoro(intention: String?) {
         stopTickLoop()
         statusItem.button?.image = MenuBarRingIcon.idle
         refreshMenuVisibility()
@@ -236,6 +246,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         checkInPanel.present(intention: intention) { [weak self] answer in
             self?.recordCheckIn(answer)
         }
+    }
+
+    @objc private func endBreakEarly() {
+        let now = Date()
+        guard pomodoro.endRestEarly(at: now) else { return }
+        write(LogEntry(timestamp: now, type: .breakEndedEarly))
+        finishRest(at: now)
+    }
+
+    private func pomodoroDidComplete(at date: Date) {
+        let intention = pomodoro.currentIntention
+        write(LogEntry(timestamp: date, type: .pomodoroCompleted))
+
+        let breakStarted: Bool
+        if settings.breaksEnabled,
+           pomodoro.startRest(at: date, duration: settings.breakDuration) {
+            write(LogEntry(timestamp: date, type: .breakStarted))
+            breakStarted = true
+        } else {
+            breakStarted = false
+        }
+
+        if breakStarted {
+            refreshMenuVisibility()
+            refreshLiveLabels(now: date)
+        } else {
+            stopTickLoop()
+            statusItem.button?.image = MenuBarRingIcon.idle
+            refreshMenuVisibility()
+        }
+
+        guard let intention else { return }
+        checkInPanel.present(intention: intention) { [weak self] answer in
+            self?.recordCheckIn(answer)
+        }
+    }
+
+    private func restDidComplete(at date: Date) {
+        write(LogEntry(timestamp: date, type: .breakCompleted))
+        finishRest(at: date)
+    }
+
+    private func finishRest(at date: Date) {
+        stopTickLoop()
+        statusItem.button?.image = MenuBarRingIcon.idle
+        refreshMenuVisibility()
+        showPrompt(at: date)
     }
 
     private func recordCheckIn(_ answer: CheckInPanel.Answer) {
@@ -256,10 +313,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func refreshMenuVisibility() {
         let running = pomodoro.isRunning
-        intentionItem.isHidden = !running
-        remainingItem.isHidden = !running
+        let resting = pomodoro.isResting
+        let active = running || resting
+        intentionItem.isHidden = !active
+        remainingItem.isHidden = !active
         endEarlyItem.isHidden = !running
-        runningSeparator.isHidden = !running
+        endBreakEarlyItem.isHidden = !resting
+        runningSeparator.isHidden = !active
         promptNowItem.isHidden = running
     }
 
@@ -275,13 +335,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func refreshLiveLabels(now: Date) {
         guard let remaining = pomodoro.remaining(at: now),
-              let fraction = pomodoro.elapsedFraction(at: now),
-              let intention = pomodoro.currentIntention else {
+              let fraction = pomodoro.elapsedFraction(at: now) else {
             return
         }
-        intentionItem.title = intention
+        if pomodoro.isResting {
+            intentionItem.title = "On break"
+            statusItem.button?.image = MenuBarRingIcon.resting(fraction: fraction)
+        } else if let intention = pomodoro.currentIntention {
+            intentionItem.title = intention
+            statusItem.button?.image = MenuBarRingIcon.image(fraction: fraction)
+        } else {
+            return
+        }
         remainingItem.title = format(remaining: remaining)
-        statusItem.button?.image = MenuBarRingIcon.image(fraction: fraction)
     }
 
     private func format(remaining: TimeInterval) -> String {
