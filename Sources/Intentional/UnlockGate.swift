@@ -32,20 +32,11 @@ struct UnlockGate {
 
     private func isFirstUnlockAfterDailyAnchor(at unlockAt: Date) -> Bool {
         guard let lastPromptAt else { return true }
-        let anchor = dailyAnchor(onOrBefore: unlockAt)
+        let anchor = DailyAnchor.mostRecent(
+            onOrBefore: unlockAt,
+            hour: dailyResetHour,
+            calendar: calendar
+        )
         return lastPromptAt < anchor
-    }
-
-    private func dailyAnchor(onOrBefore date: Date) -> Date {
-        let components = calendar.dateComponents([.year, .month, .day], from: date)
-        var anchorComponents = components
-        anchorComponents.hour = dailyResetHour
-        anchorComponents.minute = 0
-        anchorComponents.second = 0
-        let anchorToday = calendar.date(from: anchorComponents)!
-        if anchorToday <= date {
-            return anchorToday
-        }
-        return calendar.date(byAdding: .day, value: -1, to: anchorToday)!
     }
 }

@@ -1,7 +1,7 @@
 import AppKit
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let log = EventLog(fileURL: EventLog.defaultLocation())
     private var settings = Settings()
 
@@ -19,6 +19,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var endEarlyItem: NSMenuItem!
     private var promptNowItem: NSMenuItem!
     private var runningSeparator: NSMenuItem!
+    private var summaryItem: NSMenuItem!
+    private var summarySeparator: NSMenuItem!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -29,7 +31,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             button.toolTip = "Intentional"
         }
 
-        statusItem.menu = buildMenu()
+        let menu = buildMenu()
+        menu.delegate = self
+        statusItem.menu = menu
 
         promptPanel = IntentionPromptPanel()
         checkInPanel = CheckInPanel()
@@ -79,6 +83,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         runningSeparator = NSMenuItem.separator()
         menu.addItem(runningSeparator)
+
+        summaryItem = NSMenuItem(title: "Nothing logged today", action: nil, keyEquivalent: "")
+        summaryItem.isEnabled = false
+        menu.addItem(summaryItem)
+
+        summarySeparator = NSMenuItem.separator()
+        menu.addItem(summarySeparator)
 
         promptNowItem = NSMenuItem(
             title: "Prompt Now",
@@ -210,6 +221,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .skipped: type = .checkInSkipped
         }
         write(LogEntry(timestamp: Date(), type: type))
+        refreshSummary()
     }
 
     // MARK: - Menu / icon updates
@@ -221,6 +233,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         endEarlyItem.isHidden = !running
         runningSeparator.isHidden = !running
         promptNowItem.isHidden = running
+    }
+
+    private func refreshSummary() {
+        let entries = (try? log.readAll()) ?? []
+        let anchor = DailyAnchor.mostRecent(
+            onOrBefore: Date(),
+            hour: settings.dailyResetHour
+        )
+        let summary = DailySummary.compute(from: entries, since: anchor)
+        summaryItem.title = summary.headline
     }
 
     private func refreshLiveLabels(now: Date) {
@@ -257,5 +279,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openSettings() {
         settingsWindow.show()
+    }
+
+    // MARK: - NSMenuDelegate
+
+    nonisolated func menuWillOpen(_ menu: NSMenu) {
+        MainActor.assumeIsolated { self.refreshSummary() }
     }
 }
