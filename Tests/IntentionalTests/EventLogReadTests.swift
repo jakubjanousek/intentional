@@ -47,6 +47,40 @@ import Testing
     #expect(entries[1].type == .intention)
 }
 
+@Test func lastIntentionReturnsNilOnEmptyLog() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appending(path: "intentional-test-\(UUID().uuidString).log")
+    let log = EventLog(fileURL: url)
+    #expect(try log.lastIntention() == nil)
+}
+
+@Test func lastIntentionReturnsMostRecentIntentionText() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appending(path: "intentional-test-\(UUID().uuidString).log")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let log = EventLog(fileURL: url)
+
+    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 1), type: .intention, intention: "first"))
+    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 2), type: .unlock))
+    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 3), type: .intention, intention: "second"))
+    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 4), type: .checkInDone))
+
+    #expect(try log.lastIntention() == "second")
+}
+
+@Test func lastIntentionIgnoresEventsWithoutIntentionText() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appending(path: "intentional-test-\(UUID().uuidString).log")
+    defer { try? FileManager.default.removeItem(at: url) }
+    let log = EventLog(fileURL: url)
+
+    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 1), type: .intention, intention: "real one"))
+    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 2), type: .skipped))
+    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 3), type: .prompted))
+
+    #expect(try log.lastIntention() == "real one")
+}
+
 @Test func readAllPreservesEscapedIntention() throws {
     let url = FileManager.default.temporaryDirectory
         .appending(path: "intentional-test-\(UUID().uuidString).log")

@@ -119,6 +119,11 @@ struct EventLog {
         }
     }
 
+    func lastIntention() throws -> String? {
+        let entries = try readAll()
+        return entries.reversed().first { $0.type == .intention }?.intention
+    }
+
     static func defaultLocation() -> URL {
         let appSupport = FileManager.default.urls(
             for: .applicationSupportDirectory,

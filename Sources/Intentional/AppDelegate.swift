@@ -144,7 +144,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func showPrompt(at date: Date) {
         write(LogEntry(timestamp: date, type: .prompted))
         gate.recordPrompt(at: date)
+        let prefill = (try? log.lastIntention()) ?? nil
         promptPanel.present(
+            prefill: prefill,
             onStart: { [weak self] intention in self?.startPomodoro(with: intention) },
             onSkip: { [weak self] in
                 self?.write(LogEntry(timestamp: Date(), type: .skipped))

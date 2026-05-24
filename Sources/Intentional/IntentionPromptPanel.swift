@@ -104,14 +104,21 @@ final class IntentionPromptPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 
-    func present(onStart: @escaping (String) -> Void, onSkip: @escaping () -> Void) {
+    func present(
+        prefill: String? = nil,
+        onStart: @escaping (String) -> Void,
+        onSkip: @escaping () -> Void
+    ) {
         self.onStart = onStart
         self.onSkip = onSkip
-        textField.stringValue = ""
+        textField.stringValue = prefill ?? ""
         center()
         NSApp.activate(ignoringOtherApps: true)
         makeKeyAndOrderFront(nil)
         textField.window?.makeFirstResponder(textField)
+        if prefill != nil {
+            textField.currentEditor()?.selectAll(nil)
+        }
     }
 
     @objc private func didTapStart() {
