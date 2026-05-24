@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var promptPanel: IntentionPromptPanel!
     private var checkInPanel: CheckInPanel!
     private var settingsWindow: SettingsWindow!
+    private var todayWindow: TodayWindow!
     private var gate = UnlockGate()
     private var pomodoro = PomodoroTimer()
     private var tickTimer: Timer?
@@ -39,6 +40,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         checkInPanel = CheckInPanel()
         settingsWindow = SettingsWindow()
         settingsWindow.onChange = { [weak self] in self?.settingsDidChange() }
+        todayWindow = TodayWindow(log: log, settingsProvider: { [weak self] in
+            self?.settings ?? Settings()
+        })
 
         applySettings()
 
@@ -98,6 +102,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         summaryItem = NSMenuItem(title: "Nothing logged today", action: nil, keyEquivalent: "")
         summaryItem.isEnabled = false
         menu.addItem(summaryItem)
+
+        let todayItem = NSMenuItem(
+            title: "Today’s Intentions…",
+            action: #selector(openToday),
+            keyEquivalent: "t"
+        )
+        todayItem.target = self
+        menu.addItem(todayItem)
 
         summarySeparator = NSMenuItem.separator()
         menu.addItem(summarySeparator)
@@ -235,6 +247,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         write(LogEntry(timestamp: Date(), type: type))
         refreshSummary()
+        if todayWindow?.window.isVisible == true {
+            todayWindow.refresh()
+        }
     }
 
     // MARK: - Menu / icon updates
@@ -292,6 +307,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func openSettings() {
         settingsWindow.show()
+    }
+
+    @objc private func openToday() {
+        todayWindow.show()
     }
 
     // MARK: - NSMenuDelegate
