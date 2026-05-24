@@ -9,6 +9,7 @@ final class TodayWindow {
     private let header = NSTextField(labelWithString: "")
     private let rowsStack = NSStackView()
     private let emptyState = NSTextField(labelWithString: "Nothing logged today yet.")
+    private let footer = NSTextField(labelWithString: "")
     private let timeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "h:mm a"
@@ -45,7 +46,10 @@ final class TodayWindow {
         emptyState.font = NSFont.systemFont(ofSize: 13)
         emptyState.textColor = .tertiaryLabelColor
 
-        let topStack = NSStackView(views: [header, rowsStack, emptyState])
+        footer.font = NSFont.systemFont(ofSize: 12)
+        footer.textColor = .tertiaryLabelColor
+
+        let topStack = NSStackView(views: [header, rowsStack, emptyState, footer])
         topStack.orientation = .vertical
         topStack.alignment = .leading
         topStack.spacing = 16
@@ -94,6 +98,7 @@ final class TodayWindow {
             hour: settings().dailyResetHour
         )
         let items = TodayLog.intentions(from: entries, since: anchor)
+        let summary = DailySummary.compute(from: entries, since: anchor)
 
         rowsStack.arrangedSubviews.forEach {
             rowsStack.removeArrangedSubview($0)
@@ -110,6 +115,26 @@ final class TodayWindow {
                 last.widthAnchor.constraint(equalTo: rowsStack.widthAnchor),
             ])
         }
+
+        let footerText = makeFooter(focus: summary.focusSeconds, rest: summary.breakSeconds)
+        footer.stringValue = footerText ?? ""
+        footer.isHidden = footerText == nil
+    }
+
+    private func makeFooter(focus: TimeInterval, rest: TimeInterval) -> String? {
+        var parts: [String] = []
+        if focus >= 60 { parts.append("\(formatMinutes(focus)) focused") }
+        if rest >= 60 { parts.append("\(formatMinutes(rest)) on break") }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private func formatMinutes(_ seconds: TimeInterval) -> String {
+        let totalMinutes = Int(seconds) / 60
+        let hours = totalMinutes / 60
+        let mins = totalMinutes % 60
+        if hours == 0 { return "\(mins)m" }
+        if mins == 0 { return "\(hours)h" }
+        return "\(hours)h \(mins)m"
     }
 
     private func makeRow(for item: TodaysIntention) -> NSView {

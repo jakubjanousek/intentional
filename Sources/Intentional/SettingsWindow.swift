@@ -17,10 +17,11 @@ final class SettingsWindow {
     private let breakValueLabel = NSTextField(labelWithString: "")
     private let launchAtLoginCheckbox = NSButton()
     private let breaksEnabledCheckbox = NSButton()
+    private let breakEndSoundCheckbox = NSButton()
 
     init() {
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 380, height: 360),
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 400),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -66,6 +67,11 @@ final class SettingsWindow {
         breaksEnabledCheckbox.target = self
         breaksEnabledCheckbox.action = #selector(didToggleBreaksEnabled)
 
+        breakEndSoundCheckbox.setButtonType(.switch)
+        breakEndSoundCheckbox.title = "Play sound when break ends"
+        breakEndSoundCheckbox.target = self
+        breakEndSoundCheckbox.action = #selector(didToggleBreakEndSound)
+
         launchAtLoginCheckbox.setButtonType(.switch)
         launchAtLoginCheckbox.title = "Launch at login"
         launchAtLoginCheckbox.target = self
@@ -81,7 +87,8 @@ final class SettingsWindow {
 
         let stack = NSStackView(views: [
             pomodoroRow, debounceRow, dailyResetRow, breakRow,
-            breaksEnabledCheckbox, separator, launchAtLoginCheckbox,
+            breaksEnabledCheckbox, breakEndSoundCheckbox,
+            separator, launchAtLoginCheckbox,
         ])
         stack.orientation = .vertical
         stack.alignment = .leading
@@ -158,6 +165,7 @@ final class SettingsWindow {
         dailyResetStepper.integerValue = settings.dailyResetHour
         breakStepper.integerValue = settings.breakMinutes
         breaksEnabledCheckbox.state = settings.breaksEnabled ? .on : .off
+        breakEndSoundCheckbox.state = settings.breakEndSoundEnabled ? .on : .off
         launchAtLoginCheckbox.state = settings.launchAtLogin ? .on : .off
         refreshLabels()
         refreshBreakRowEnabled()
@@ -174,6 +182,7 @@ final class SettingsWindow {
         let enabled = settings.breaksEnabled
         breakStepper.isEnabled = enabled
         breakValueLabel.textColor = enabled ? .secondaryLabelColor : .tertiaryLabelColor
+        breakEndSoundCheckbox.isEnabled = enabled
     }
 
     @objc private func didChangePomodoro() {
@@ -203,6 +212,11 @@ final class SettingsWindow {
     @objc private func didToggleBreaksEnabled() {
         settings.breaksEnabled = breaksEnabledCheckbox.state == .on
         refreshBreakRowEnabled()
+        onChange?()
+    }
+
+    @objc private func didToggleBreakEndSound() {
+        settings.breakEndSoundEnabled = breakEndSoundCheckbox.state == .on
         onChange?()
     }
 

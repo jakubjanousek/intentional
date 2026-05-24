@@ -112,3 +112,16 @@ private func freshDefaults() -> UserDefaults {
     let reloaded = Settings(defaults: defaults)
     #expect(reloaded.breaksEnabled == false)
 }
+
+@Test func breakEndSoundDefaultsToTrue() {
+    let settings = Settings(defaults: freshDefaults())
+    #expect(settings.breakEndSoundEnabled == true)
+}
+
+@Test func breakEndSoundPersists() {
+    let defaults = freshDefaults()
+    var settings = Settings(defaults: defaults)
+    settings.breakEndSoundEnabled = false
+    let reloaded = Settings(defaults: defaults)
+    #expect(reloaded.breakEndSoundEnabled == false)
+}

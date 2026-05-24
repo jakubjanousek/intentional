@@ -13,6 +13,7 @@ struct Settings {
         static let launchAtLogin = "launchAtLogin"
         static let breakMinutes = "breakMinutes"
         static let breaksEnabled = "breaksEnabled"
+        static let breakEndSoundEnabled = "breakEndSoundEnabled"
     }
 
     let defaults: UserDefaults
@@ -52,6 +53,14 @@ struct Settings {
             return defaults.bool(forKey: Key.breaksEnabled)
         }
         set { defaults.set(newValue, forKey: Key.breaksEnabled) }
+    }
+
+    var breakEndSoundEnabled: Bool {
+        get {
+            guard defaults.object(forKey: Key.breakEndSoundEnabled) != nil else { return true }
+            return defaults.bool(forKey: Key.breakEndSoundEnabled)
+        }
+        set { defaults.set(newValue, forKey: Key.breakEndSoundEnabled) }
     }
 
     var pomodoroDuration: TimeInterval { TimeInterval(pomodoroMinutes * 60) }

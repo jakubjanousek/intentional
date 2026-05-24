@@ -285,6 +285,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func restDidComplete(at date: Date) {
         write(LogEntry(timestamp: date, type: .breakCompleted))
+        if settings.breakEndSoundEnabled {
+            NSSound(named: "Glass")?.play()
+        }
         finishRest(at: date)
     }
 
