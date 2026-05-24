@@ -3,12 +3,13 @@ import AppKit
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let log = EventLog(fileURL: EventLog.defaultLocation())
-    private let pomodoroDuration: TimeInterval = 25 * 60
+    private var settings = Settings()
 
     private var statusItem: NSStatusItem!
     private var unlockMonitor: UnlockMonitor!
     private var promptPanel: IntentionPromptPanel!
     private var checkInPanel: CheckInPanel!
+    private var settingsWindow: SettingsWindow!
     private var gate = UnlockGate()
     private var pomodoro = PomodoroTimer()
     private var tickTimer: Timer?
@@ -32,6 +33,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         promptPanel = IntentionPromptPanel()
         checkInPanel = CheckInPanel()
+        settingsWindow = SettingsWindow()
+        settingsWindow.onChange = { [weak self] in self?.settingsDidChange() }
+
+        applySettings()
 
         unlockMonitor = UnlockMonitor()
         unlockMonitor.onUnlock = { [weak self] date in self?.handleUnlock(at: date) }
@@ -40,6 +45,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         write(LogEntry(timestamp: Date(), type: .started))
         refreshMenuVisibility()
+    }
+
+    private func applySettings() {
+        gate.minLockDuration = settings.debounceInterval
+        gate.dailyResetHour = settings.dailyResetHour
+    }
+
+    func settingsDidChange() {
+        settings = Settings()
+        applySettings()
     }
 
     private func buildMenu() -> NSMenu {
@@ -80,6 +95,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         revealItem.target = self
         menu.addItem(revealItem)
+
+        let settingsItem = NSMenuItem(
+            title: "Settings…",
+            action: #selector(openSettings),
+            keyEquivalent: ","
+        )
+        settingsItem.target = self
+        menu.addItem(settingsItem)
 
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(
@@ -128,7 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             write(LogEntry(timestamp: now, type: .pomodoroEndedEarly))
         }
 
-        pomodoro.start(intention: intention, at: now, duration: pomodoroDuration)
+        pomodoro.start(intention: intention, at: now, duration: settings.pomodoroDuration)
         refreshMenuVisibility()
         refreshLiveLabels(now: now)
         startTickLoop()
@@ -230,5 +253,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func revealLog() {
         NSWorkspace.shared.activateFileViewerSelecting([log.fileURL])
+    }
+
+    @objc private func openSettings() {
+        settingsWindow.show()
     }
 }
