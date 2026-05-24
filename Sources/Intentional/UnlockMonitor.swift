@@ -8,6 +8,7 @@ final class UnlockMonitor {
     private var observers: [NSObjectProtocol] = []
 
     func start() {
+        guard observers.isEmpty else { return }
         let center = DistributedNotificationCenter.default()
         observers.append(center.addObserver(
             forName: .init("com.apple.screenIsUnlocked"),

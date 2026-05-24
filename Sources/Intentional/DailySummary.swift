@@ -27,9 +27,3 @@ struct DailySummary {
         return "\(intentionsSet) \(noun) today · \(intentionsDone) done"
     }
 }
-
-private extension Array {
-    func count(where predicate: (Element) -> Bool) -> Int {
-        reduce(0) { predicate($1) ? $0 + 1 : $0 }
-    }
-}

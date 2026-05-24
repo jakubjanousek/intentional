@@ -121,7 +121,7 @@ final class TodayWindow {
 
         let text = NSTextField(labelWithString: item.intention)
         text.font = NSFont.monospacedSystemFont(ofSize: 14, weight: .regular)
-        text.textColor = item.outcome == .inProgress ? .labelColor : .labelColor
+        text.textColor = .labelColor
         text.lineBreakMode = .byTruncatingTail
 
         let time = NSTextField(labelWithString: timeFormatter.string(from: item.startedAt).lowercased())

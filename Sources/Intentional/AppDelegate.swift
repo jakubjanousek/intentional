@@ -181,12 +181,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func startPomodoro(with intention: String) {
         let now = Date()
-        write(LogEntry(timestamp: now, type: .intention, intention: intention))
 
         if pomodoro.isRunning {
             write(LogEntry(timestamp: now, type: .pomodoroEndedEarly))
         }
 
+        write(LogEntry(timestamp: now, type: .intention, intention: intention))
         pomodoro.start(intention: intention, at: now, duration: settings.pomodoroDuration)
         refreshMenuVisibility()
         refreshLiveLabels(now: now)

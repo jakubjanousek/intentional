@@ -12,7 +12,7 @@ final class IntentionPromptPanel: NSPanel {
 
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 520, height: 200),
-            styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel, .closable],
+            styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered,
             defer: false
         )

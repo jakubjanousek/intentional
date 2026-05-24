@@ -14,7 +14,7 @@ enum EventType: String {
     case checkInSkipped = "check_in_skipped"
 }
 
-struct LogEntry: Codable {
+struct LogEntry: Decodable {
     let timestamp: Date
     let type: EventType
     let intention: String?
@@ -32,8 +32,7 @@ struct LogEntry: Codable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let tsString = try c.decode(String.self, forKey: .ts)
-        let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: tsString) else {
+        guard let date = EventLog.iso8601.date(from: tsString) else {
             throw DecodingError.dataCorruptedError(
                 forKey: .ts, in: c, debugDescription: "invalid ISO8601 timestamp"
             )
@@ -48,23 +47,16 @@ struct LogEntry: Codable {
         self.type = parsedType
         self.intention = try c.decodeIfPresent(String.self, forKey: .intention)
     }
-
-    func encode(to encoder: Encoder) throws {
-        var c = encoder.container(keyedBy: CodingKeys.self)
-        let formatter = ISO8601DateFormatter()
-        try c.encode(formatter.string(from: timestamp), forKey: .ts)
-        try c.encode(type.rawValue, forKey: .type)
-        try c.encodeIfPresent(intention, forKey: .intention)
-    }
 }
 
 struct EventLog {
     let fileURL: URL
 
+    nonisolated(unsafe) static let iso8601 = ISO8601DateFormatter()
+
     static func format(_ entry: LogEntry) -> String {
-        let formatter = ISO8601DateFormatter()
         var parts = [
-            "\"ts\":\"\(formatter.string(from: entry.timestamp))\"",
+            "\"ts\":\"\(iso8601.string(from: entry.timestamp))\"",
             "\"type\":\"\(entry.type.rawValue)\""
         ]
         if let intention = entry.intention {
@@ -75,15 +67,20 @@ struct EventLog {
 
     private static func escape(_ s: String) -> String {
         var out = ""
-        out.reserveCapacity(s.count)
-        for ch in s {
-            switch ch {
-            case "\\": out.append(#"\\"#)
-            case "\"": out.append(#"\""#)
-            case "\n": out.append(#"\n"#)
-            case "\r": out.append(#"\r"#)
-            case "\t": out.append(#"\t"#)
-            default: out.append(ch)
+        out.reserveCapacity(s.unicodeScalars.count)
+        for scalar in s.unicodeScalars {
+            switch scalar.value {
+            case 0x22: out.append(#"\""#)
+            case 0x5C: out.append(#"\\"#)
+            case 0x08: out.append(#"\b"#)
+            case 0x09: out.append(#"\t"#)
+            case 0x0A: out.append(#"\n"#)
+            case 0x0C: out.append(#"\f"#)
+            case 0x0D: out.append(#"\r"#)
+            case 0x00...0x1F:
+                out.append(String(format: #"\u%04x"#, scalar.value))
+            default:
+                out.unicodeScalars.append(scalar)
             }
         }
         return out

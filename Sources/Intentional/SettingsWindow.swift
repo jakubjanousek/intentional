@@ -175,6 +175,11 @@ final class SettingsWindow {
         } catch {
             NSLog("Intentional: launch-at-login toggle failed: \(error)")
             launchAtLoginCheckbox.state = settings.launchAtLogin ? .on : .off
+            let alert = NSAlert()
+            alert.messageText = "Couldn’t update Launch at Login"
+            alert.informativeText = "\(error.localizedDescription)\n\nYou may need to approve Intentional in System Settings → General → Login Items."
+            alert.alertStyle = .warning
+            alert.beginSheetModal(for: window, completionHandler: nil)
         }
     }
 }

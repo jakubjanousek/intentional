@@ -25,6 +25,17 @@ import Testing
     #expect(EventLog.format(entry) == #"{"ts":"2023-11-14T22:13:20Z","type":"intention","intention":"reply to \"Anna\" \\ then ship"}"#)
 }
 
+@Test func formatEscapesControlCharactersAsValidJSON() throws {
+    let entry = LogEntry(
+        timestamp: Date(timeIntervalSince1970: 1_700_000_000),
+        type: .intention,
+        intention: "before\u{01}\u{1f}after"
+    )
+    let line = EventLog.format(entry)
+    let decoded = try JSONDecoder().decode(LogEntry.self, from: Data(line.utf8))
+    #expect(decoded.intention == "before\u{01}\u{1f}after")
+}
+
 @Test func appendWritesLinesInOrder() throws {
     let url = FileManager.default.temporaryDirectory
         .appending(path: "intentional-test-\(UUID().uuidString).log")
