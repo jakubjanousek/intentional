@@ -61,16 +61,16 @@ final class IntentionPromptPanel: NSPanel {
         let stack = NSStackView(views: [prompt, field, hint])
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 10
+        stack.spacing = 14
         stack.translatesAutoresizingMaskIntoConstraints = false
-        stack.setCustomSpacing(14, after: field)
+        stack.setCustomSpacing(18, after: field)
         backdrop.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: backdrop.leadingAnchor, constant: 24),
-            stack.trailingAnchor.constraint(equalTo: backdrop.trailingAnchor, constant: -24),
-            stack.topAnchor.constraint(equalTo: backdrop.topAnchor, constant: 22),
-            stack.bottomAnchor.constraint(equalTo: backdrop.bottomAnchor, constant: -20),
+            stack.leadingAnchor.constraint(equalTo: backdrop.leadingAnchor, constant: 28),
+            stack.trailingAnchor.constraint(equalTo: backdrop.trailingAnchor, constant: -28),
+            stack.topAnchor.constraint(equalTo: backdrop.topAnchor, constant: 26),
+            stack.bottomAnchor.constraint(equalTo: backdrop.bottomAnchor, constant: -24),
             field.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
     }
