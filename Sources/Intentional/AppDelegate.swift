@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var gate = UnlockGate()
     private var pomodoro = PomodoroTimer()
     private var tickTimer: Timer?
+    private var skipReminderTimer: Timer?
 
     private var intentionItem: NSMenuItem!
     private var remainingItem: NSMenuItem!
@@ -183,6 +184,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func showPrompt(at date: Date) {
+        cancelSkipReminder()
         write(LogEntry(timestamp: date, type: .prompted))
         gate.recordPrompt(at: date)
         let prefill = (try? log.lastIntention()) ?? nil
@@ -191,8 +193,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             onStart: { [weak self] intention in self?.startPomodoro(with: intention) },
             onSkip: { [weak self] in
                 self?.write(LogEntry(timestamp: Date(), type: .skipped))
+                self?.scheduleSkipReminder()
             }
         )
+    }
+
+    private func scheduleSkipReminder() {
+        cancelSkipReminder()
+        let timer = Timer(timeInterval: settings.skipReminderDuration, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.showPrompt(at: Date()) }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        skipReminderTimer = timer
+    }
+
+    private func cancelSkipReminder() {
+        skipReminderTimer?.invalidate()
+        skipReminderTimer = nil
     }
 
     // MARK: - Pomodoro lifecycle
@@ -310,6 +327,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if settings.breakEndSoundEnabled {
             NSSound(named: "Glass")?.play()
         }
+        ScreenBorderFlash.flash(color: .systemGreen)
         finishRest(at: date)
     }
 

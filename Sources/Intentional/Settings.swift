@@ -5,6 +5,7 @@ struct Settings {
     static let debounceRange = 1...30
     static let dailyResetRange = 0...12
     static let breakRange = 1...30
+    static let skipReminderRange = 1...60
 
     private enum Key {
         static let pomodoro = "pomodoroMinutes"
@@ -16,6 +17,7 @@ struct Settings {
         static let breakEndSoundEnabled = "breakEndSoundEnabled"
         static let pomodoroEndSoundEnabled = "pomodoroEndSoundEnabled"
         static let showIntentionInMenuBar = "showIntentionInMenuBar"
+        static let skipReminderMinutes = "skipReminderMinutes"
     }
 
     let defaults: UserDefaults
@@ -81,9 +83,15 @@ struct Settings {
         set { defaults.set(newValue, forKey: Key.showIntentionInMenuBar) }
     }
 
+    var skipReminderMinutes: Int {
+        get { read(Key.skipReminderMinutes, default: 15, in: Self.skipReminderRange) }
+        set { defaults.set(Self.skipReminderRange.clamping(newValue), forKey: Key.skipReminderMinutes) }
+    }
+
     var pomodoroDuration: TimeInterval { TimeInterval(pomodoroMinutes * 60) }
     var debounceInterval: TimeInterval { TimeInterval(debounceMinutes * 60) }
     var breakDuration: TimeInterval { TimeInterval(breakMinutes * 60) }
+    var skipReminderDuration: TimeInterval { TimeInterval(skipReminderMinutes * 60) }
 
     private func read(_ key: String, default fallback: Int, in range: ClosedRange<Int>) -> Int {
         guard defaults.object(forKey: key) != nil else { return fallback }

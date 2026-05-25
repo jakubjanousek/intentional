@@ -11,10 +11,12 @@ final class SettingsWindow {
     private let debounceStepper = NSStepper()
     private let dailyResetStepper = NSStepper()
     private let breakStepper = NSStepper()
+    private let skipReminderStepper = NSStepper()
     private let pomodoroValueLabel = NSTextField(labelWithString: "")
     private let debounceValueLabel = NSTextField(labelWithString: "")
     private let dailyResetValueLabel = NSTextField(labelWithString: "")
     private let breakValueLabel = NSTextField(labelWithString: "")
+    private let skipReminderValueLabel = NSTextField(labelWithString: "")
     private let launchAtLoginCheckbox = NSButton()
     private let breaksEnabledCheckbox = NSButton()
     private let breakEndSoundCheckbox = NSButton()
@@ -23,7 +25,7 @@ final class SettingsWindow {
 
     init() {
         window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 380, height: 400),
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 440),
             styleMask: [.titled, .closable, .miniaturizable],
             backing: .buffered,
             defer: false
@@ -63,6 +65,14 @@ final class SettingsWindow {
             valueLabel: breakValueLabel,
             action: #selector(didChangeBreakMinutes)
         )
+        let skipReminderRow = makeRow(
+            label: "Re-prompt after skip",
+            stepper: skipReminderStepper,
+            range: Settings.skipReminderRange,
+            increment: 5,
+            valueLabel: skipReminderValueLabel,
+            action: #selector(didChangeSkipReminder)
+        )
 
         breaksEnabledCheckbox.setButtonType(.switch)
         breaksEnabledCheckbox.title = "Auto-start break after pomodoro"
@@ -98,7 +108,7 @@ final class SettingsWindow {
         separator.translatesAutoresizingMaskIntoConstraints = false
 
         let stack = NSStackView(views: [
-            pomodoroRow, debounceRow, dailyResetRow, breakRow,
+            pomodoroRow, debounceRow, dailyResetRow, breakRow, skipReminderRow,
             breaksEnabledCheckbox, breakEndSoundCheckbox, pomodoroEndSoundCheckbox,
             showIntentionInMenuBarCheckbox,
             separator, launchAtLoginCheckbox,
@@ -119,6 +129,7 @@ final class SettingsWindow {
             debounceRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             dailyResetRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             breakRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+            skipReminderRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
             separator.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
         window.contentView = container
@@ -177,6 +188,7 @@ final class SettingsWindow {
         debounceStepper.integerValue = settings.debounceMinutes
         dailyResetStepper.integerValue = settings.dailyResetHour
         breakStepper.integerValue = settings.breakMinutes
+        skipReminderStepper.integerValue = settings.skipReminderMinutes
         breaksEnabledCheckbox.state = settings.breaksEnabled ? .on : .off
         breakEndSoundCheckbox.state = settings.breakEndSoundEnabled ? .on : .off
         pomodoroEndSoundCheckbox.state = settings.pomodoroEndSoundEnabled ? .on : .off
@@ -191,6 +203,7 @@ final class SettingsWindow {
         debounceValueLabel.stringValue = "\(settings.debounceMinutes) min"
         dailyResetValueLabel.stringValue = String(format: "%02d:00", settings.dailyResetHour)
         breakValueLabel.stringValue = "\(settings.breakMinutes) min"
+        skipReminderValueLabel.stringValue = "\(settings.skipReminderMinutes) min"
     }
 
     private func refreshBreakRowEnabled() {
@@ -220,6 +233,12 @@ final class SettingsWindow {
 
     @objc private func didChangeBreakMinutes() {
         settings.breakMinutes = breakStepper.integerValue
+        refreshLabels()
+        onChange?()
+    }
+
+    @objc private func didChangeSkipReminder() {
+        settings.skipReminderMinutes = skipReminderStepper.integerValue
         refreshLabels()
         onChange?()
     }

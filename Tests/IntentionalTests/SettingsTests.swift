@@ -151,3 +151,30 @@ private func freshDefaults() -> UserDefaults {
     let reloaded = Settings(defaults: defaults)
     #expect(reloaded.pomodoroEndSoundEnabled == false)
 }
+
+@Test func skipReminderMinutesDefaultsToFifteen() {
+    let settings = Settings(defaults: freshDefaults())
+    #expect(settings.skipReminderMinutes == 15)
+}
+
+@Test func skipReminderMinutesClampsToValidRange() {
+    var settings = Settings(defaults: freshDefaults())
+    settings.skipReminderMinutes = 0
+    #expect(settings.skipReminderMinutes == 1)
+    settings.skipReminderMinutes = 999
+    #expect(settings.skipReminderMinutes == 60)
+}
+
+@Test func skipReminderMinutesPersists() {
+    let defaults = freshDefaults()
+    var settings = Settings(defaults: defaults)
+    settings.skipReminderMinutes = 20
+    let reloaded = Settings(defaults: defaults)
+    #expect(reloaded.skipReminderMinutes == 20)
+}
+
+@Test func skipReminderDurationDerivesFromMinutes() {
+    var settings = Settings(defaults: freshDefaults())
+    settings.skipReminderMinutes = 10
+    #expect(settings.skipReminderDuration == 10 * 60)
+}
