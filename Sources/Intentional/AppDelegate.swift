@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var unlockMonitor: UnlockMonitor!
     private var promptPanel: IntentionPromptPanel!
     private var checkInPanel: CheckInPanel!
+    private var breakHUD: BreakHUDPanel!
     private var settingsWindow: SettingsWindow!
     private var todayWindow: TodayWindow!
     private var gate = UnlockGate()
@@ -41,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         promptPanel = IntentionPromptPanel()
         checkInPanel = CheckInPanel()
+        breakHUD = BreakHUDPanel()
         settingsWindow = SettingsWindow()
         settingsWindow.onChange = { [weak self] in self?.settingsDidChange() }
         todayWindow = TodayWindow(log: log, settingsProvider: { [weak self] in
@@ -221,6 +223,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             write(LogEntry(timestamp: now, type: .pomodoroEndedEarly))
         } else if pomodoro.isResting {
             write(LogEntry(timestamp: now, type: .breakEndedEarly))
+            breakHUD.dismiss()
         }
 
         write(LogEntry(timestamp: now, type: .intention, intention: intention))
@@ -305,6 +308,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if breakStarted {
             refreshMenuVisibility()
             refreshLiveLabels(now: date)
+            breakHUD.show(remaining: settings.breakDuration) { [weak self] in
+                self?.endBreakEarly()
+            }
         } else {
             stopTickLoop()
             statusItem.button?.image = MenuBarRingIcon.idle
@@ -332,6 +338,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func finishRest(at date: Date) {
+        breakHUD.dismiss()
         stopTickLoop()
         statusItem.button?.image = MenuBarRingIcon.idle
         updateStatusTitle(text: nil)
@@ -387,6 +394,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             intentionItem.title = "On break"
             statusItem.button?.image = MenuBarRingIcon.resting(fraction: fraction)
             updateStatusTitle(text: nil)
+            breakHUD.updateRemaining(remaining)
         } else if let intention = pomodoro.currentIntention {
             intentionItem.title = intention
             statusItem.button?.image = MenuBarRingIcon.image(fraction: fraction)
