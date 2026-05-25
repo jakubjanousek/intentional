@@ -130,3 +130,101 @@ private let anchor = date("2026-05-24T04:00:00Z")
     #expect(summary.focusSeconds == 0)
     #expect(summary.breakSeconds == 0)
 }
+
+@Test func focusSecondsSuccessfulExcludesAbandoned() {
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-24T09:00:00Z"), type: .intention, intention: "done"),
+        LogEntry(timestamp: date("2026-05-24T09:25:00Z"), type: .pomodoroCompleted),
+        LogEntry(timestamp: date("2026-05-24T10:00:00Z"), type: .intention, intention: "abandoned"),
+        LogEntry(timestamp: date("2026-05-24T10:05:00Z"), type: .pomodoroEndedEarly),
+    ]
+    let summary = DailySummary.compute(from: entries, since: anchor)
+    #expect(summary.focusSeconds == 30 * 60)
+    #expect(summary.focusSecondsSuccessful == 25 * 60)
+}
+
+@Test func breakBetweenPomodorosCountsWhenIntentionFollowsQuickly() {
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-24T09:25:00Z"), type: .breakStarted),
+        LogEntry(timestamp: date("2026-05-24T09:30:00Z"), type: .breakCompleted),
+        LogEntry(timestamp: date("2026-05-24T09:31:00Z"), type: .intention, intention: "next"),
+    ]
+    let summary = DailySummary.compute(from: entries, since: anchor)
+    #expect(summary.breakSecondsBetweenPomodoros == 5 * 60)
+}
+
+@Test func breakBetweenPomodorosSkipsWhenUserAbandonedAfterBreak() {
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-24T09:25:00Z"), type: .breakStarted),
+        LogEntry(timestamp: date("2026-05-24T09:30:00Z"), type: .breakCompleted),
+        // user walked away; no intention follows
+    ]
+    let summary = DailySummary.compute(from: entries, since: anchor)
+    #expect(summary.breakSecondsBetweenPomodoros == 0)
+}
+
+@Test func breakBetweenPomodorosSkipsWhenIntentionIsTooLate() {
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-24T09:25:00Z"), type: .breakStarted),
+        LogEntry(timestamp: date("2026-05-24T09:30:00Z"), type: .breakCompleted),
+        // intention is more than 10 minutes after break end
+        LogEntry(timestamp: date("2026-05-24T09:45:00Z"), type: .intention, intention: "much later"),
+    ]
+    let summary = DailySummary.compute(from: entries, since: anchor)
+    #expect(summary.breakSecondsBetweenPomodoros == 0)
+}
+
+@Test func breakBetweenPomodorosCountsWhenEndedEarly() {
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-24T09:25:00Z"), type: .breakStarted),
+        LogEntry(timestamp: date("2026-05-24T09:27:00Z"), type: .breakEndedEarly),
+        LogEntry(timestamp: date("2026-05-24T09:27:30Z"), type: .intention, intention: "next"),
+    ]
+    let summary = DailySummary.compute(from: entries, since: anchor)
+    #expect(summary.breakSecondsBetweenPomodoros == 2 * 60)
+}
+
+@Test func activeSecondsOffFocusSumsUnlockLockSpans() {
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-24T08:00:00Z"), type: .unlock),
+        LogEntry(timestamp: date("2026-05-24T09:00:00Z"), type: .lock),
+        LogEntry(timestamp: date("2026-05-24T10:00:00Z"), type: .unlock),
+        LogEntry(timestamp: date("2026-05-24T11:00:00Z"), type: .lock),
+    ]
+    let summary = DailySummary.compute(
+        from: entries,
+        since: anchor,
+        until: date("2026-05-24T12:00:00Z")
+    )
+    // 2 hours of unlock-lock spans, no focus → 2h off-focus
+    #expect(summary.activeSecondsOffFocus == 2 * 60 * 60)
+}
+
+@Test func activeSecondsOffFocusSubtractsFocus() {
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-24T08:00:00Z"), type: .unlock),
+        LogEntry(timestamp: date("2026-05-24T09:00:00Z"), type: .intention, intention: "x"),
+        LogEntry(timestamp: date("2026-05-24T09:25:00Z"), type: .pomodoroCompleted),
+        LogEntry(timestamp: date("2026-05-24T10:00:00Z"), type: .lock),
+    ]
+    let summary = DailySummary.compute(
+        from: entries,
+        since: anchor,
+        until: date("2026-05-24T11:00:00Z")
+    )
+    // 2h active − 25m focus = 1h 35m off-focus
+    let expected: TimeInterval = (2 * 60 * 60) - (25 * 60)
+    #expect(summary.activeSecondsOffFocus == expected)
+}
+
+@Test func activeSecondsOffFocusIncludesOpenSessionUpToEndingAt() {
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-24T08:00:00Z"), type: .unlock),
+    ]
+    let summary = DailySummary.compute(
+        from: entries,
+        since: anchor,
+        until: date("2026-05-24T09:00:00Z")
+    )
+    #expect(summary.activeSecondsOffFocus == 60 * 60)
+}

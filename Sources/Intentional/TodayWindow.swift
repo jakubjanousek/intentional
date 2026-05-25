@@ -137,7 +137,7 @@ final class TodayWindow {
             ])
         }
 
-        let footerText = makeFooter(focus: summary.focusSeconds, rest: summary.breakSeconds)
+        let footerText = makeFooter(summary: summary)
         footer.stringValue = footerText ?? ""
         footer.isHidden = footerText == nil
     }
@@ -195,10 +195,21 @@ final class TodayWindow {
         return "●●●●+"
     }
 
-    private func makeFooter(focus: TimeInterval, rest: TimeInterval) -> String? {
+    private func makeFooter(summary: DailySummary) -> String? {
         var parts: [String] = []
-        if focus >= 60 { parts.append("\(formatMinutes(focus)) focused") }
-        if rest >= 60 { parts.append("\(formatMinutes(rest)) on break") }
+        if summary.focusSecondsSuccessful >= 60 {
+            parts.append("\(formatMinutes(summary.focusSecondsSuccessful)) successful focus")
+        }
+        let abandoned = summary.focusSeconds - summary.focusSecondsSuccessful
+        if abandoned >= 60 {
+            parts.append("\(formatMinutes(abandoned)) abandoned")
+        }
+        if summary.breakSecondsBetweenPomodoros >= 60 {
+            parts.append("\(formatMinutes(summary.breakSecondsBetweenPomodoros)) on break")
+        }
+        if summary.activeSecondsOffFocus >= 60 {
+            parts.append("\(formatMinutes(summary.activeSecondsOffFocus)) off-focus")
+        }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
