@@ -232,12 +232,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let now = Date()
 
         if pomodoro.isRunning {
-            write(LogEntry(timestamp: now, type: .pomodoroEndedEarly))
+            let previousIntention = pomodoro.currentIntention
+            endRunningPomodoroEarly(at: now)
+            if let previousIntention {
+                checkInPanel.present(intention: previousIntention) { [weak self] answer in
+                    self?.recordCheckIn(answer)
+                    self?.beginNewPomodoro(with: intention)
+                }
+                return
+            }
         } else if pomodoro.isResting {
             write(LogEntry(timestamp: now, type: .breakEndedEarly))
             breakHUD.dismiss()
         }
 
+        beginNewPomodoro(with: intention)
+    }
+
+    private func endRunningPomodoroEarly(at now: Date) {
+        _ = pomodoro.endEarly(at: now)
+        write(LogEntry(timestamp: now, type: .pomodoroEndedEarly))
+        stopTickLoop()
+        statusItem.button?.image = MenuBarRingIcon.idle
+        updateStatusTitle(text: nil)
+        refreshMenuVisibility()
+    }
+
+    private func beginNewPomodoro(with intention: String) {
+        let now = Date()
         write(LogEntry(timestamp: now, type: .intention, intention: intention))
         pomodoro.start(intention: intention, at: now, duration: settings.pomodoroDuration)
         refreshMenuVisibility()
