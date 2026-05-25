@@ -7,6 +7,7 @@ final class TodayWindow {
     private let settings: () -> Settings
 
     private let header = NSTextField(labelWithString: "")
+    private let weekStack = NSStackView()
     private let rowsStack = NSStackView()
     private let emptyState = NSTextField(labelWithString: "Nothing logged today yet.")
     private let footer = NSTextField(labelWithString: "")
@@ -18,6 +19,11 @@ final class TodayWindow {
     private let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "EEEE, MMM d"
+        return f
+    }()
+    private let weekdayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE"
         return f
     }()
 
@@ -38,6 +44,12 @@ final class TodayWindow {
         header.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         header.textColor = .secondaryLabelColor
 
+        weekStack.orientation = .horizontal
+        weekStack.alignment = .top
+        weekStack.distribution = .fillEqually
+        weekStack.spacing = 6
+        weekStack.translatesAutoresizingMaskIntoConstraints = false
+
         rowsStack.orientation = .vertical
         rowsStack.alignment = .leading
         rowsStack.spacing = 8
@@ -49,7 +61,7 @@ final class TodayWindow {
         footer.font = NSFont.systemFont(ofSize: 12)
         footer.textColor = .tertiaryLabelColor
 
-        let topStack = NSStackView(views: [header, rowsStack, emptyState, footer])
+        let topStack = NSStackView(views: [header, weekStack, rowsStack, emptyState, footer])
         topStack.orientation = .vertical
         topStack.alignment = .leading
         topStack.spacing = 16
@@ -70,6 +82,7 @@ final class TodayWindow {
             topStack.topAnchor.constraint(equalTo: flipped.topAnchor, constant: 20),
             topStack.bottomAnchor.constraint(lessThanOrEqualTo: flipped.bottomAnchor, constant: -20),
             rowsStack.widthAnchor.constraint(equalTo: topStack.widthAnchor),
+            weekStack.widthAnchor.constraint(equalTo: topStack.widthAnchor),
         ])
 
         scroll.documentView = flipped
@@ -93,12 +106,20 @@ final class TodayWindow {
         header.stringValue = dateFormatter.string(from: now).lowercased()
 
         let entries = (try? log.readAll()) ?? []
+        let resetHour = settings().dailyResetHour
         let anchor = DailyAnchor.mostRecent(
             onOrBefore: now,
-            hour: settings().dailyResetHour
+            hour: resetHour
         )
         let items = TodayLog.intentions(from: entries, since: anchor)
         let summary = DailySummary.compute(from: entries, since: anchor)
+        let week = RecentDays.summaries(
+            from: entries,
+            endingOn: now,
+            days: 7,
+            dailyResetHour: resetHour
+        )
+        rebuildWeekStack(stats: week, todayAnchor: anchor)
 
         rowsStack.arrangedSubviews.forEach {
             rowsStack.removeArrangedSubview($0)
@@ -119,6 +140,59 @@ final class TodayWindow {
         let footerText = makeFooter(focus: summary.focusSeconds, rest: summary.breakSeconds)
         footer.stringValue = footerText ?? ""
         footer.isHidden = footerText == nil
+    }
+
+    private func rebuildWeekStack(stats: [DayStat], todayAnchor: Date) {
+        weekStack.arrangedSubviews.forEach {
+            weekStack.removeArrangedSubview($0)
+            $0.removeFromSuperview()
+        }
+        for stat in stats {
+            weekStack.addArrangedSubview(makeWeekCell(stat: stat, isToday: stat.anchor == todayAnchor))
+        }
+    }
+
+    private func makeWeekCell(stat: DayStat, isToday: Bool) -> NSView {
+        let isCurrent = isToday
+        let baseColor: NSColor = isCurrent ? .labelColor : .secondaryLabelColor
+        let dimColor: NSColor = isCurrent ? .secondaryLabelColor : .tertiaryLabelColor
+
+        let day = NSTextField(labelWithString: weekdayFormatter.string(from: stat.anchor).lowercased())
+        day.font = NSFont.monospacedSystemFont(ofSize: 11, weight: isCurrent ? .semibold : .regular)
+        day.textColor = baseColor
+        day.alignment = .center
+
+        let focusText: String = stat.focusSeconds >= 60 ? formatMinutesCompact(stat.focusSeconds) : "—"
+        let focus = NSTextField(labelWithString: focusText)
+        focus.font = NSFont.monospacedSystemFont(ofSize: 12, weight: isCurrent ? .semibold : .regular)
+        focus.textColor = stat.focusSeconds >= 60 ? baseColor : dimColor
+        focus.alignment = .center
+
+        let dots = NSTextField(labelWithString: dotString(for: stat.intentionsDone))
+        dots.font = NSFont.monospacedSystemFont(ofSize: 11, weight: .regular)
+        dots.textColor = stat.intentionsDone > 0 ? NSColor.systemGreen : dimColor
+        dots.alignment = .center
+
+        let column = NSStackView(views: [day, focus, dots])
+        column.orientation = .vertical
+        column.alignment = .centerX
+        column.spacing = 2
+        return column
+    }
+
+    private func formatMinutesCompact(_ seconds: TimeInterval) -> String {
+        let totalMinutes = Int(seconds) / 60
+        let hours = totalMinutes / 60
+        let mins = totalMinutes % 60
+        if hours == 0 { return "\(mins)m" }
+        if mins == 0 { return "\(hours)h" }
+        return "\(hours)h\(mins)"
+    }
+
+    private func dotString(for count: Int) -> String {
+        if count <= 0 { return "·" }
+        if count <= 4 { return String(repeating: "●", count: count) }
+        return "●●●●+"
     }
 
     private func makeFooter(focus: TimeInterval, rest: TimeInterval) -> String? {
