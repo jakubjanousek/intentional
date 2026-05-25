@@ -17,7 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private var intentionItem: NSMenuItem!
     private var remainingItem: NSMenuItem!
-    private var endEarlyItem: NSMenuItem!
+    private var markDoneItem: NSMenuItem!
+    private var abandonItem: NSMenuItem!
     private var endBreakEarlyItem: NSMenuItem!
     private var promptNowItem: NSMenuItem!
     private var runningSeparator: NSMenuItem!
@@ -89,13 +90,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         remainingItem.isEnabled = false
         menu.addItem(remainingItem)
 
-        endEarlyItem = NSMenuItem(
-            title: "End Early",
-            action: #selector(endEarly),
-            keyEquivalent: "e"
+        markDoneItem = NSMenuItem(
+            title: "Mark Done",
+            action: #selector(markDone),
+            keyEquivalent: "d"
         )
-        endEarlyItem.target = self
-        menu.addItem(endEarlyItem)
+        markDoneItem.target = self
+        menu.addItem(markDoneItem)
+
+        abandonItem = NSMenuItem(
+            title: "Abandon",
+            action: #selector(abandon),
+            keyEquivalent: "a"
+        )
+        abandonItem.target = self
+        menu.addItem(abandonItem)
 
         endBreakEarlyItem = NSMenuItem(
             title: "End Break Early",
@@ -234,18 +243,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refreshLiveLabels(now: now)
     }
 
-    @objc private func endEarly() {
+    @objc private func markDone() {
         let now = Date()
-        let intention = pomodoro.currentIntention
+        guard pomodoro.markDone(at: now) else { return }
+        pomodoroDidComplete(at: now, autoCheckIn: .done)
+    }
+
+    @objc private func abandon() {
+        let now = Date()
         guard pomodoro.endEarly(at: now) else { return }
         write(LogEntry(timestamp: now, type: .pomodoroEndedEarly))
         stopTickLoop()
         statusItem.button?.image = MenuBarRingIcon.idle
+        updateStatusTitle(text: nil)
         refreshMenuVisibility()
-        guard let intention else { return }
-        checkInPanel.present(intention: intention) { [weak self] answer in
-            self?.recordCheckIn(answer)
-        }
+        recordCheckIn(.notDone)
     }
 
     @objc private func endBreakEarly() {
@@ -255,9 +267,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         finishRest(at: now)
     }
 
-    private func pomodoroDidComplete(at date: Date) {
+    private func pomodoroDidComplete(at date: Date, autoCheckIn: CheckInPanel.Answer? = nil) {
         let intention = pomodoro.currentIntention
         write(LogEntry(timestamp: date, type: .pomodoroCompleted))
+
+        if settings.pomodoroEndSoundEnabled {
+            NSSound(named: "Glass")?.play()
+        }
+        ScreenBorderFlash.flash()
 
         let breakStarted: Bool
         if settings.breaksEnabled,
@@ -274,9 +291,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             stopTickLoop()
             statusItem.button?.image = MenuBarRingIcon.idle
+            updateStatusTitle(text: nil)
             refreshMenuVisibility()
         }
 
+        if let autoCheckIn {
+            recordCheckIn(autoCheckIn)
+            return
+        }
         guard let intention else { return }
         checkInPanel.present(intention: intention) { [weak self] answer in
             self?.recordCheckIn(answer)
@@ -294,6 +316,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func finishRest(at date: Date) {
         stopTickLoop()
         statusItem.button?.image = MenuBarRingIcon.idle
+        updateStatusTitle(text: nil)
         refreshMenuVisibility()
         showPrompt(at: date)
     }
@@ -320,7 +343,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let active = running || resting
         intentionItem.isHidden = !active
         remainingItem.isHidden = !active
-        endEarlyItem.isHidden = !running
+        markDoneItem.isHidden = !running
+        abandonItem.isHidden = !running
         endBreakEarlyItem.isHidden = !resting
         runningSeparator.isHidden = !active
         promptNowItem.isHidden = running
@@ -344,13 +368,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if pomodoro.isResting {
             intentionItem.title = "On break"
             statusItem.button?.image = MenuBarRingIcon.resting(fraction: fraction)
+            updateStatusTitle(text: nil)
         } else if let intention = pomodoro.currentIntention {
             intentionItem.title = intention
             statusItem.button?.image = MenuBarRingIcon.image(fraction: fraction)
+            updateStatusTitle(text: settings.showIntentionInMenuBar ? truncate(intention) : nil)
         } else {
             return
         }
         remainingItem.title = format(remaining: remaining)
+    }
+
+    private func updateStatusTitle(text: String?) {
+        guard let button = statusItem.button else { return }
+        if let text, !text.isEmpty {
+            button.title = " " + text
+            button.imagePosition = .imageLeft
+        } else {
+            button.title = ""
+            button.imagePosition = .imageOnly
+        }
+    }
+
+    private func truncate(_ intention: String, max: Int = 28) -> String {
+        if intention.count <= max { return intention }
+        let endIndex = intention.index(intention.startIndex, offsetBy: max - 1)
+        return String(intention[..<endIndex]) + "…"
     }
 
     private func format(remaining: TimeInterval) -> String {

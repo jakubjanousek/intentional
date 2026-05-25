@@ -18,6 +18,8 @@ final class SettingsWindow {
     private let launchAtLoginCheckbox = NSButton()
     private let breaksEnabledCheckbox = NSButton()
     private let breakEndSoundCheckbox = NSButton()
+    private let pomodoroEndSoundCheckbox = NSButton()
+    private let showIntentionInMenuBarCheckbox = NSButton()
 
     init() {
         window = NSWindow(
@@ -72,6 +74,16 @@ final class SettingsWindow {
         breakEndSoundCheckbox.target = self
         breakEndSoundCheckbox.action = #selector(didToggleBreakEndSound)
 
+        pomodoroEndSoundCheckbox.setButtonType(.switch)
+        pomodoroEndSoundCheckbox.title = "Play sound when pomodoro ends"
+        pomodoroEndSoundCheckbox.target = self
+        pomodoroEndSoundCheckbox.action = #selector(didTogglePomodoroEndSound)
+
+        showIntentionInMenuBarCheckbox.setButtonType(.switch)
+        showIntentionInMenuBarCheckbox.title = "Show intention in menu bar"
+        showIntentionInMenuBarCheckbox.target = self
+        showIntentionInMenuBarCheckbox.action = #selector(didToggleShowIntentionInMenuBar)
+
         launchAtLoginCheckbox.setButtonType(.switch)
         launchAtLoginCheckbox.title = "Launch at login"
         launchAtLoginCheckbox.target = self
@@ -87,7 +99,8 @@ final class SettingsWindow {
 
         let stack = NSStackView(views: [
             pomodoroRow, debounceRow, dailyResetRow, breakRow,
-            breaksEnabledCheckbox, breakEndSoundCheckbox,
+            breaksEnabledCheckbox, breakEndSoundCheckbox, pomodoroEndSoundCheckbox,
+            showIntentionInMenuBarCheckbox,
             separator, launchAtLoginCheckbox,
         ])
         stack.orientation = .vertical
@@ -166,6 +179,8 @@ final class SettingsWindow {
         breakStepper.integerValue = settings.breakMinutes
         breaksEnabledCheckbox.state = settings.breaksEnabled ? .on : .off
         breakEndSoundCheckbox.state = settings.breakEndSoundEnabled ? .on : .off
+        pomodoroEndSoundCheckbox.state = settings.pomodoroEndSoundEnabled ? .on : .off
+        showIntentionInMenuBarCheckbox.state = settings.showIntentionInMenuBar ? .on : .off
         launchAtLoginCheckbox.state = settings.launchAtLogin ? .on : .off
         refreshLabels()
         refreshBreakRowEnabled()
@@ -217,6 +232,16 @@ final class SettingsWindow {
 
     @objc private func didToggleBreakEndSound() {
         settings.breakEndSoundEnabled = breakEndSoundCheckbox.state == .on
+        onChange?()
+    }
+
+    @objc private func didTogglePomodoroEndSound() {
+        settings.pomodoroEndSoundEnabled = pomodoroEndSoundCheckbox.state == .on
+        onChange?()
+    }
+
+    @objc private func didToggleShowIntentionInMenuBar() {
+        settings.showIntentionInMenuBar = showIntentionInMenuBarCheckbox.state == .on
         onChange?()
     }
 

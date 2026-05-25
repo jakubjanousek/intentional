@@ -4,8 +4,6 @@ import AppKit
 final class CheckInPanel: NSPanel {
     private let promptLabel: NSTextField
     private let intentionLabel: NSTextField
-    private let autoDismissAfter: TimeInterval = 10
-    private var dismissWorkItem: DispatchWorkItem?
     private var onAnswer: ((Answer) -> Void)?
 
     enum Answer {
@@ -98,21 +96,12 @@ final class CheckInPanel: NSPanel {
         intentionLabel.stringValue = intention
         positionTopRight()
         orderFrontRegardless()
-
-        let work = DispatchWorkItem { [weak self] in
-            self?.deliver(.skipped)
-        }
-        dismissWorkItem?.cancel()
-        dismissWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + autoDismissAfter, execute: work)
     }
 
     @objc private func didTapDone() { deliver(.done) }
     @objc private func didTapNotDone() { deliver(.notDone) }
 
     private func deliver(_ answer: Answer) {
-        dismissWorkItem?.cancel()
-        dismissWorkItem = nil
         let callback = onAnswer
         onAnswer = nil
         orderOut(nil)

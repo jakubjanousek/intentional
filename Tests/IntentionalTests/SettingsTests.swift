@@ -125,3 +125,29 @@ private func freshDefaults() -> UserDefaults {
     let reloaded = Settings(defaults: defaults)
     #expect(reloaded.breakEndSoundEnabled == false)
 }
+
+@Test func showIntentionInMenuBarDefaultsToTrue() {
+    let settings = Settings(defaults: freshDefaults())
+    #expect(settings.showIntentionInMenuBar == true)
+}
+
+@Test func showIntentionInMenuBarPersists() {
+    let defaults = freshDefaults()
+    var settings = Settings(defaults: defaults)
+    settings.showIntentionInMenuBar = false
+    let reloaded = Settings(defaults: defaults)
+    #expect(reloaded.showIntentionInMenuBar == false)
+}
+
+@Test func pomodoroEndSoundDefaultsToTrue() {
+    let settings = Settings(defaults: freshDefaults())
+    #expect(settings.pomodoroEndSoundEnabled == true)
+}
+
+@Test func pomodoroEndSoundPersists() {
+    let defaults = freshDefaults()
+    var settings = Settings(defaults: defaults)
+    settings.pomodoroEndSoundEnabled = false
+    let reloaded = Settings(defaults: defaults)
+    #expect(reloaded.pomodoroEndSoundEnabled == false)
+}

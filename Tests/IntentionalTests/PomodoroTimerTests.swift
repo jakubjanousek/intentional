@@ -81,6 +81,41 @@ private let twentyFive: TimeInterval = 25 * 60
     #expect(timer.endEarly(at: t0) == false)
 }
 
+@Test func markDoneTransitionsToFinishedNotEndedEarly() {
+    var timer = PomodoroTimer()
+    timer.start(intention: "ship it", at: t0, duration: twentyFive)
+    let ok = timer.markDone(at: t0.addingTimeInterval(60))
+    #expect(ok)
+    if case let .finished(intention, _, _, endedEarly) = timer.state {
+        #expect(intention == "ship it")
+        #expect(endedEarly == false)
+    } else {
+        Issue.record("expected finished state with endedEarly=false")
+    }
+}
+
+@Test func markDoneAllowsStartRest() {
+    var timer = PomodoroTimer()
+    timer.start(intention: "x", at: t0, duration: twentyFive)
+    _ = timer.markDone(at: t0.addingTimeInterval(60))
+    let restStart = t0.addingTimeInterval(60)
+    let ok = timer.startRest(at: restStart, duration: fiveMin)
+    #expect(ok)
+    #expect(timer.isResting)
+}
+
+@Test func markDoneOnIdleReturnsFalse() {
+    var timer = PomodoroTimer()
+    #expect(timer.markDone(at: t0) == false)
+}
+
+@Test func markDoneOnRestingReturnsFalse() {
+    var timer = finishedTimer()
+    _ = timer.startRest(at: t0.addingTimeInterval(twentyFive), duration: fiveMin)
+    #expect(timer.markDone(at: t0.addingTimeInterval(twentyFive + 30)) == false)
+    #expect(timer.isResting)
+}
+
 @Test func startRejectsNonPositiveDuration() {
     var timer = PomodoroTimer()
     #expect(timer.start(intention: "x", at: t0, duration: 0) == false)

@@ -14,6 +14,8 @@ struct Settings {
         static let breakMinutes = "breakMinutes"
         static let breaksEnabled = "breaksEnabled"
         static let breakEndSoundEnabled = "breakEndSoundEnabled"
+        static let pomodoroEndSoundEnabled = "pomodoroEndSoundEnabled"
+        static let showIntentionInMenuBar = "showIntentionInMenuBar"
     }
 
     let defaults: UserDefaults
@@ -61,6 +63,22 @@ struct Settings {
             return defaults.bool(forKey: Key.breakEndSoundEnabled)
         }
         set { defaults.set(newValue, forKey: Key.breakEndSoundEnabled) }
+    }
+
+    var pomodoroEndSoundEnabled: Bool {
+        get {
+            guard defaults.object(forKey: Key.pomodoroEndSoundEnabled) != nil else { return true }
+            return defaults.bool(forKey: Key.pomodoroEndSoundEnabled)
+        }
+        set { defaults.set(newValue, forKey: Key.pomodoroEndSoundEnabled) }
+    }
+
+    var showIntentionInMenuBar: Bool {
+        get {
+            guard defaults.object(forKey: Key.showIntentionInMenuBar) != nil else { return true }
+            return defaults.bool(forKey: Key.showIntentionInMenuBar)
+        }
+        set { defaults.set(newValue, forKey: Key.showIntentionInMenuBar) }
     }
 
     var pomodoroDuration: TimeInterval { TimeInterval(pomodoroMinutes * 60) }

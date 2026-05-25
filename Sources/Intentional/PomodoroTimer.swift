@@ -30,6 +30,18 @@ struct PomodoroTimer {
     }
 
     @discardableResult
+    mutating func markDone(at endedAt: Date) -> Bool {
+        guard case let .running(intention, startedAt, _) = state else { return false }
+        state = .finished(
+            intention: intention,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            endedEarly: false
+        )
+        return true
+    }
+
+    @discardableResult
     mutating func startRest(at startedAt: Date, duration: TimeInterval) -> Bool {
         guard duration > 0 else { return false }
         guard case let .finished(_, _, _, endedEarly) = state, endedEarly == false else {
