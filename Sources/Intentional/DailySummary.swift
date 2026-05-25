@@ -19,11 +19,18 @@ struct DailySummary {
         since anchor: Date,
         until endingAt: Date = Date()
     ) -> DailySummary {
-        let scoped = entries.filter { $0.timestamp >= anchor }
+        let scoped = entries
+            .filter { $0.timestamp >= anchor }
+            .sorted { $0.timestamp < $1.timestamp }
         let focus = pairedDuration(
             in: scoped,
             start: [.intention],
             end: [.pomodoroCompleted, .pomodoroEndedEarly]
+        )
+        let breakTotal = pairedDuration(
+            in: scoped,
+            start: [.breakStarted],
+            end: [.breakCompleted, .breakEndedEarly]
         )
         let active = activeSeconds(in: scoped, until: endingAt)
         return DailySummary(
@@ -38,13 +45,9 @@ struct DailySummary {
                 start: [.intention],
                 end: [.pomodoroCompleted]
             ),
-            breakSeconds: pairedDuration(
-                in: scoped,
-                start: [.breakStarted],
-                end: [.breakCompleted, .breakEndedEarly]
-            ),
+            breakSeconds: breakTotal,
             breakSecondsBetweenPomodoros: breakBetweenPomodoros(in: scoped),
-            activeSecondsOffFocus: max(0, active - focus)
+            activeSecondsOffFocus: max(0, active - focus - breakTotal)
         )
     }
 
@@ -108,21 +111,21 @@ struct DailySummary {
 
     private static func activeSeconds(in entries: [LogEntry], until endingAt: Date) -> TimeInterval {
         var total: TimeInterval = 0
-        var sessionStart: Date?
+        var engagedSince: Date?
         for entry in entries {
             switch entry.type {
-            case .started, .unlock:
-                if sessionStart == nil { sessionStart = entry.timestamp }
-            case .lock:
-                if let start = sessionStart, entry.timestamp > start {
+            case .started, .unlock, .idleEnded:
+                if engagedSince == nil { engagedSince = entry.timestamp }
+            case .lock, .idleStarted:
+                if let start = engagedSince, entry.timestamp > start {
                     total += entry.timestamp.timeIntervalSince(start)
                 }
-                sessionStart = nil
+                engagedSince = nil
             default:
                 continue
             }
         }
-        if let start = sessionStart, endingAt > start {
+        if let start = engagedSince, endingAt > start {
             total += endingAt.timeIntervalSince(start)
         }
         return total

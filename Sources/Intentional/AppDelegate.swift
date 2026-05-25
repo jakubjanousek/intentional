@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private var statusItem: NSStatusItem!
     private var unlockMonitor: UnlockMonitor!
+    private var idleMonitor: IdleMonitor!
     private var promptPanel: IntentionPromptPanel!
     private var checkInPanel: CheckInPanel!
     private var breakHUD: BreakHUDPanel!
@@ -55,6 +56,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         unlockMonitor.onUnlock = { [weak self] date in self?.handleUnlock(at: date) }
         unlockMonitor.onLock = { [weak self] date in self?.handleLock(at: date) }
         unlockMonitor.start()
+
+        idleMonitor = IdleMonitor()
+        idleMonitor.onIdleStarted = { [weak self] date in
+            self?.write(LogEntry(timestamp: date, type: .idleStarted))
+        }
+        idleMonitor.onIdleEnded = { [weak self] date in
+            self?.write(LogEntry(timestamp: date, type: .idleEnded))
+        }
+        idleMonitor.start()
 
         write(LogEntry(timestamp: Date(), type: .started))
         refreshMenuVisibility()
@@ -172,12 +182,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func handleUnlock(at date: Date) {
         write(LogEntry(timestamp: date, type: .unlock))
+        idleMonitor?.resume()
         guard gate.shouldPrompt(unlockAt: date) else { return }
         showPrompt(at: date)
     }
 
     private func handleLock(at date: Date) {
         write(LogEntry(timestamp: date, type: .lock))
+        idleMonitor?.pause()
         gate.recordLock(at: date)
     }
 

@@ -15,6 +15,8 @@ enum EventType: String {
     case breakStarted = "break_started"
     case breakCompleted = "break_completed"
     case breakEndedEarly = "break_ended_early"
+    case idleStarted = "idle_started"
+    case idleEnded = "idle_ended"
 }
 
 struct LogEntry: Decodable {

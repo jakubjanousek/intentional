@@ -228,3 +228,69 @@ private let anchor = date("2026-05-24T04:00:00Z")
     )
     #expect(summary.activeSecondsOffFocus == 60 * 60)
 }
+
+@Test func activeSecondsOffFocusSubtractsBreakBetweenPomodoros() {
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-24T08:00:00Z"), type: .unlock),
+        LogEntry(timestamp: date("2026-05-24T08:25:00Z"), type: .breakStarted),
+        LogEntry(timestamp: date("2026-05-24T08:30:00Z"), type: .breakCompleted),
+        LogEntry(timestamp: date("2026-05-24T08:31:00Z"), type: .intention, intention: "next"),
+        LogEntry(timestamp: date("2026-05-24T08:56:00Z"), type: .pomodoroCompleted),
+    ]
+    let summary = DailySummary.compute(
+        from: entries,
+        since: anchor,
+        until: date("2026-05-24T09:00:00Z")
+    )
+    // 1h active − 25m focus − 5m break = 30m off-focus
+    let expected: TimeInterval = (60 * 60) - (25 * 60) - (5 * 60)
+    #expect(summary.activeSecondsOffFocus == expected)
+}
+
+@Test func activeSecondsExcludesIdleGap() {
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-24T08:00:00Z"), type: .unlock),
+        LogEntry(timestamp: date("2026-05-24T08:30:00Z"), type: .idleStarted),
+        LogEntry(timestamp: date("2026-05-24T08:50:00Z"), type: .idleEnded),
+        LogEntry(timestamp: date("2026-05-24T09:00:00Z"), type: .lock),
+    ]
+    let summary = DailySummary.compute(
+        from: entries,
+        since: anchor,
+        until: date("2026-05-24T10:00:00Z")
+    )
+    // unlocked 60min, but 20min idle → 40min active
+    #expect(summary.activeSecondsOffFocus == 40 * 60)
+}
+
+@Test func activeSecondsTreatsOpenIdleAsInactive() {
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-24T08:00:00Z"), type: .unlock),
+        LogEntry(timestamp: date("2026-05-24T08:30:00Z"), type: .idleStarted),
+        // no idleEnded — user still away
+    ]
+    let summary = DailySummary.compute(
+        from: entries,
+        since: anchor,
+        until: date("2026-05-24T09:00:00Z")
+    )
+    // 30 minutes of active before going idle
+    #expect(summary.activeSecondsOffFocus == 30 * 60)
+}
+
+@Test func activeSecondsSortsOutOfOrderEntries() {
+    // IdleMonitor stamps idleStarted at when input last occurred,
+    // which can predate the append-position of the event.
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-24T08:00:00Z"), type: .unlock),
+        LogEntry(timestamp: date("2026-05-24T08:35:00Z"), type: .idleEnded),
+        LogEntry(timestamp: date("2026-05-24T08:30:00Z"), type: .idleStarted),
+    ]
+    let summary = DailySummary.compute(
+        from: entries,
+        since: anchor,
+        until: date("2026-05-24T09:00:00Z")
+    )
+    // 30min active + 25min active = 55min
+    #expect(summary.activeSecondsOffFocus == 55 * 60)
+}
