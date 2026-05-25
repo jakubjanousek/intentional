@@ -11,7 +11,7 @@ final class IntentionPromptPanel: NSPanel {
         self.textField = field
 
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 200),
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 140),
             styleMask: [.titled, .fullSizeContentView, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -52,52 +52,26 @@ final class IntentionPromptPanel: NSPanel {
         field.focusRingType = .none
         field.usesSingleLineMode = true
         field.lineBreakMode = .byTruncatingTail
-
-        let skipButton = NSButton(
-            title: "Skip",
-            target: self,
-            action: #selector(didTapSkip)
-        )
-        skipButton.bezelStyle = .rounded
-        skipButton.keyEquivalent = "\u{1b}"
-
-        let startButton = NSButton(
-            title: "Start",
-            target: self,
-            action: #selector(didTapStart)
-        )
-        startButton.bezelStyle = .rounded
-        startButton.keyEquivalent = "\r"
-
-        let buttons = NSStackView(views: [skipButton, startButton])
-        buttons.orientation = .horizontal
-        buttons.spacing = 8
-        buttons.alignment = .centerY
-        buttons.distribution = .fill
+        field.delegate = self
 
         let hint = NSTextField(labelWithString: "↵ start  ·  esc skip")
         hint.font = NSFont.systemFont(ofSize: 11)
         hint.textColor = .tertiaryLabelColor
 
-        let footer = NSStackView(views: [hint, NSView(), buttons])
-        footer.orientation = .horizontal
-        footer.alignment = .centerY
-        footer.spacing = 12
-
-        let stack = NSStackView(views: [prompt, field, footer])
+        let stack = NSStackView(views: [prompt, field, hint])
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.spacing = 14
+        stack.spacing = 10
         stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.setCustomSpacing(14, after: field)
         backdrop.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: backdrop.leadingAnchor, constant: 28),
-            stack.trailingAnchor.constraint(equalTo: backdrop.trailingAnchor, constant: -28),
-            stack.topAnchor.constraint(equalTo: backdrop.topAnchor, constant: 28),
-            stack.bottomAnchor.constraint(equalTo: backdrop.bottomAnchor, constant: -24),
+            stack.leadingAnchor.constraint(equalTo: backdrop.leadingAnchor, constant: 24),
+            stack.trailingAnchor.constraint(equalTo: backdrop.trailingAnchor, constant: -24),
+            stack.topAnchor.constraint(equalTo: backdrop.topAnchor, constant: 22),
+            stack.bottomAnchor.constraint(equalTo: backdrop.bottomAnchor, constant: -20),
             field.widthAnchor.constraint(equalTo: stack.widthAnchor),
-            footer.widthAnchor.constraint(equalTo: stack.widthAnchor),
         ])
     }
 
@@ -149,5 +123,24 @@ final class IntentionPromptPanel: NSPanel {
             return geist
         }
         return NSFont.monospacedSystemFont(ofSize: size, weight: .regular)
+    }
+}
+
+extension IntentionPromptPanel: NSTextFieldDelegate {
+    func control(
+        _ control: NSControl,
+        textView: NSTextView,
+        doCommandBy commandSelector: Selector
+    ) -> Bool {
+        switch commandSelector {
+        case #selector(NSResponder.insertNewline(_:)):
+            didTapStart()
+            return true
+        case #selector(NSResponder.cancelOperation(_:)):
+            didTapSkip()
+            return true
+        default:
+            return false
+        }
     }
 }
