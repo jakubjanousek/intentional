@@ -3,7 +3,7 @@ import Foundation
 struct DailySummary {
     let intentionsSet: Int
     let intentionsDone: Int
-    let intentionsNotDone: Int
+    let intentionsFailed: Int
     let intentionsSkipped: Int
     let promptsSkipped: Int
     let focusSeconds: TimeInterval
@@ -35,9 +35,9 @@ struct DailySummary {
         let active = activeSeconds(in: scoped, until: endingAt)
         return DailySummary(
             intentionsSet: scoped.count { $0.type == .intention },
-            intentionsDone: scoped.count { $0.type == .checkInDone },
-            intentionsNotDone: scoped.count { $0.type == .checkInNotDone },
-            intentionsSkipped: scoped.count { $0.type == .checkInSkipped },
+            intentionsDone: scoped.count { $0.type == .outcomeDone },
+            intentionsFailed: scoped.count { $0.type == .outcomeFailed },
+            intentionsSkipped: scoped.count { $0.type == .outcomeSkipped },
             promptsSkipped: scoped.count { $0.type == .skipped },
             focusSeconds: focus,
             focusSecondsSuccessful: pairedDuration(

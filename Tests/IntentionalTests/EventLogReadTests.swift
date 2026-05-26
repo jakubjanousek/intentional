@@ -17,14 +17,14 @@ import Testing
 
     try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 1_700_000_000), type: .unlock))
     try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 1_700_000_010), type: .intention, intention: "ship summary"))
-    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 1_700_000_020), type: .checkInDone))
+    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 1_700_000_020), type: .outcomeDone))
 
     let entries = try log.readAll()
     #expect(entries.count == 3)
     #expect(entries[0].type == .unlock)
     #expect(entries[1].type == .intention)
     #expect(entries[1].intention == "ship summary")
-    #expect(entries[2].type == .checkInDone)
+    #expect(entries[2].type == .outcomeDone)
 }
 
 @Test func readAllSkipsMalformedLines() throws {
@@ -63,7 +63,7 @@ import Testing
     try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 1), type: .intention, intention: "first"))
     try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 2), type: .unlock))
     try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 3), type: .intention, intention: "second"))
-    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 4), type: .checkInDone))
+    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 4), type: .outcomeDone))
 
     #expect(try log.lastIntention() == "second")
 }

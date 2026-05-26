@@ -9,14 +9,24 @@ enum EventType: String {
     case skipped
     case pomodoroCompleted = "pomodoro_completed"
     case pomodoroEndedEarly = "pomodoro_ended_early"
-    case checkInDone = "check_in_done"
-    case checkInNotDone = "check_in_not_done"
-    case checkInSkipped = "check_in_skipped"
+    case outcomeDone = "outcome_done"
+    case outcomeFailed = "outcome_failed"
+    case outcomeSkipped = "outcome_skipped"
     case breakStarted = "break_started"
     case breakCompleted = "break_completed"
     case breakEndedEarly = "break_ended_early"
     case idleStarted = "idle_started"
     case idleEnded = "idle_ended"
+
+    static func decode(_ raw: String) -> EventType? {
+        if let direct = EventType(rawValue: raw) { return direct }
+        switch raw {
+        case "check_in_done": return .outcomeDone
+        case "check_in_not_done": return .outcomeFailed
+        case "check_in_skipped": return .outcomeSkipped
+        default: return nil
+        }
+    }
 }
 
 struct LogEntry: Decodable {
@@ -43,7 +53,7 @@ struct LogEntry: Decodable {
             )
         }
         let typeString = try c.decode(String.self, forKey: .type)
-        guard let parsedType = EventType(rawValue: typeString) else {
+        guard let parsedType = EventType.decode(typeString) else {
             throw DecodingError.dataCorruptedError(
                 forKey: .type, in: c, debugDescription: "unknown event type \(typeString)"
             )

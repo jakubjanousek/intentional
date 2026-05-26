@@ -56,10 +56,10 @@ private func fixedCalendar() -> Calendar {
     let entries: [LogEntry] = [
         LogEntry(timestamp: date("2026-05-23T10:00:00Z"), type: .intention, intention: "x"),
         LogEntry(timestamp: date("2026-05-23T10:25:00Z"), type: .pomodoroCompleted),
-        LogEntry(timestamp: date("2026-05-23T11:00:00Z"), type: .checkInDone),
+        LogEntry(timestamp: date("2026-05-23T11:00:00Z"), type: .outcomeDone),
         LogEntry(timestamp: date("2026-05-25T09:00:00Z"), type: .intention, intention: "y"),
         LogEntry(timestamp: date("2026-05-25T09:30:00Z"), type: .pomodoroCompleted),
-        LogEntry(timestamp: date("2026-05-25T09:31:00Z"), type: .checkInDone),
+        LogEntry(timestamp: date("2026-05-25T09:31:00Z"), type: .outcomeDone),
     ]
     let result = RecentDays.summaries(
         from: entries,
@@ -83,7 +83,7 @@ private func fixedCalendar() -> Calendar {
     let entries: [LogEntry] = [
         LogEntry(timestamp: date("2026-05-15T10:00:00Z"), type: .intention, intention: "old"),
         LogEntry(timestamp: date("2026-05-15T10:25:00Z"), type: .pomodoroCompleted),
-        LogEntry(timestamp: date("2026-05-15T10:26:00Z"), type: .checkInDone),
+        LogEntry(timestamp: date("2026-05-15T10:26:00Z"), type: .outcomeDone),
     ]
     let result = RecentDays.summaries(
         from: entries,
@@ -103,7 +103,7 @@ private func fixedCalendar() -> Calendar {
         // 02:00 UTC on day N+1 is *before* the 4am anchor, so it belongs to day N
         LogEntry(timestamp: date("2026-05-24T02:00:00Z"), type: .intention, intention: "late"),
         LogEntry(timestamp: date("2026-05-24T02:25:00Z"), type: .pomodoroCompleted),
-        LogEntry(timestamp: date("2026-05-24T02:26:00Z"), type: .checkInDone),
+        LogEntry(timestamp: date("2026-05-24T02:26:00Z"), type: .outcomeDone),
     ]
     let result = RecentDays.summaries(
         from: entries,

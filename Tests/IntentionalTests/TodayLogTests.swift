@@ -22,7 +22,7 @@ private let anchor = date("2026-05-24T04:00:00Z")
     #expect(items.isEmpty)
 }
 
-@Test func intentionWithoutCheckInIsInProgress() {
+@Test func intentionWithoutOutcomeIsInProgress() {
     let entries: [LogEntry] = [
         LogEntry(timestamp: date("2026-05-24T09:00:00Z"), type: .intention, intention: "write code"),
     ]
@@ -32,41 +32,41 @@ private let anchor = date("2026-05-24T04:00:00Z")
     #expect(items[0].outcome == .inProgress)
 }
 
-@Test func pairsIntentionWithSubsequentCheckInDone() {
+@Test func pairsIntentionWithSubsequentOutcomeDone() {
     let entries: [LogEntry] = [
         LogEntry(timestamp: date("2026-05-24T09:00:00Z"), type: .intention, intention: "write code"),
         LogEntry(timestamp: date("2026-05-24T09:25:00Z"), type: .pomodoroCompleted),
-        LogEntry(timestamp: date("2026-05-24T09:25:30Z"), type: .checkInDone),
+        LogEntry(timestamp: date("2026-05-24T09:25:30Z"), type: .outcomeDone),
     ]
     let items = TodayLog.intentions(from: entries, since: anchor)
     #expect(items.count == 1)
     #expect(items[0].outcome == .done)
 }
 
-@Test func pairsIntentionWithCheckInNotDone() {
+@Test func pairsIntentionWithOutcomeFailed() {
     let entries: [LogEntry] = [
         LogEntry(timestamp: date("2026-05-24T09:00:00Z"), type: .intention, intention: "drift"),
-        LogEntry(timestamp: date("2026-05-24T09:25:30Z"), type: .checkInNotDone),
+        LogEntry(timestamp: date("2026-05-24T09:25:30Z"), type: .outcomeFailed),
     ]
     let items = TodayLog.intentions(from: entries, since: anchor)
-    #expect(items[0].outcome == .notDone)
+    #expect(items[0].outcome == .failed)
 }
 
-@Test func pairsIntentionWithCheckInSkipped() {
+@Test func pairsIntentionWithOutcomeSkipped() {
     let entries: [LogEntry] = [
         LogEntry(timestamp: date("2026-05-24T09:00:00Z"), type: .intention, intention: "vanished"),
-        LogEntry(timestamp: date("2026-05-24T09:25:30Z"), type: .checkInSkipped),
+        LogEntry(timestamp: date("2026-05-24T09:25:30Z"), type: .outcomeSkipped),
     ]
     let items = TodayLog.intentions(from: entries, since: anchor)
     #expect(items[0].outcome == .skipped)
 }
 
-@Test func multipleIntentionsEachGetTheirNextCheckIn() {
+@Test func multipleIntentionsEachGetTheirNextOutcome() {
     let entries: [LogEntry] = [
         LogEntry(timestamp: date("2026-05-24T09:00:00Z"), type: .intention, intention: "first"),
-        LogEntry(timestamp: date("2026-05-24T09:25:00Z"), type: .checkInDone),
+        LogEntry(timestamp: date("2026-05-24T09:25:00Z"), type: .outcomeDone),
         LogEntry(timestamp: date("2026-05-24T10:00:00Z"), type: .intention, intention: "second"),
-        LogEntry(timestamp: date("2026-05-24T10:25:00Z"), type: .checkInNotDone),
+        LogEntry(timestamp: date("2026-05-24T10:25:00Z"), type: .outcomeFailed),
         LogEntry(timestamp: date("2026-05-24T11:00:00Z"), type: .intention, intention: "third"),
     ]
     let items = TodayLog.intentions(from: entries, since: anchor)
@@ -74,14 +74,14 @@ private let anchor = date("2026-05-24T04:00:00Z")
     #expect(items[0].intention == "first")
     #expect(items[0].outcome == .done)
     #expect(items[1].intention == "second")
-    #expect(items[1].outcome == .notDone)
+    #expect(items[1].outcome == .failed)
     #expect(items[2].intention == "third")
     #expect(items[2].outcome == .inProgress)
 }
 
-@Test func ignoresCheckInsThatHaveNoPrecedingIntention() {
+@Test func ignoresOutcomesThatHaveNoPrecedingIntention() {
     let entries: [LogEntry] = [
-        LogEntry(timestamp: date("2026-05-24T09:00:00Z"), type: .checkInDone),
+        LogEntry(timestamp: date("2026-05-24T09:00:00Z"), type: .outcomeDone),
         LogEntry(timestamp: date("2026-05-24T10:00:00Z"), type: .intention, intention: "real one"),
     ]
     let items = TodayLog.intentions(from: entries, since: anchor)

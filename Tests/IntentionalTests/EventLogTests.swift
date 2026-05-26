@@ -74,10 +74,16 @@ import Testing
     #expect(EventType.skipped.rawValue == "skipped")
     #expect(EventType.pomodoroCompleted.rawValue == "pomodoro_completed")
     #expect(EventType.pomodoroEndedEarly.rawValue == "pomodoro_ended_early")
-    #expect(EventType.checkInDone.rawValue == "check_in_done")
-    #expect(EventType.checkInNotDone.rawValue == "check_in_not_done")
-    #expect(EventType.checkInSkipped.rawValue == "check_in_skipped")
+    #expect(EventType.outcomeDone.rawValue == "outcome_done")
+    #expect(EventType.outcomeFailed.rawValue == "outcome_failed")
+    #expect(EventType.outcomeSkipped.rawValue == "outcome_skipped")
     #expect(EventType.breakStarted.rawValue == "break_started")
     #expect(EventType.breakCompleted.rawValue == "break_completed")
     #expect(EventType.breakEndedEarly.rawValue == "break_ended_early")
+}
+
+@Test func decodeMapsLegacyCheckInTypes() {
+    #expect(EventType.decode("check_in_done") == .outcomeDone)
+    #expect(EventType.decode("check_in_not_done") == .outcomeFailed)
+    #expect(EventType.decode("check_in_skipped") == .outcomeSkipped)
 }

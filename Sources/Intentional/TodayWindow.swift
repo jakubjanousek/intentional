@@ -251,7 +251,7 @@ final class TodayWindow {
     private func glyphCharacter(for outcome: TodaysIntention.Outcome) -> String {
         switch outcome {
         case .done: return "✓"
-        case .notDone: return "✗"
+        case .failed: return "✗"
         case .skipped: return "·"
         case .inProgress: return "◐"
         }
@@ -263,7 +263,7 @@ final class TodayWindow {
             return NSColor.systemOrange
         case .skipped:
             return .tertiaryLabelColor
-        case .done, .notDone:
+        case .done, .failed:
             return .secondaryLabelColor
         }
     }

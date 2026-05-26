@@ -3,7 +3,7 @@ import Foundation
 struct TodaysIntention: Equatable {
     enum Outcome: Equatable {
         case done
-        case notDone
+        case failed
         case skipped
         case inProgress
     }
@@ -34,9 +34,9 @@ enum TodayLog {
         for entry in tail {
             if entry.type == .intention { return .inProgress }
             switch entry.type {
-            case .checkInDone: return .done
-            case .checkInNotDone: return .notDone
-            case .checkInSkipped: return .skipped
+            case .outcomeDone: return .done
+            case .outcomeFailed: return .failed
+            case .outcomeSkipped: return .skipped
             default: continue
             }
         }

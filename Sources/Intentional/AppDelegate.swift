@@ -16,8 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pomodoro = PomodoroTimer()
     private var tickTimer: Timer?
     private var skipReminderTimer: Timer?
-    private var pendingCheckInIntention: String?
-    private var pendingCheckInFailed = false
+    private var pendingOutcomeIntention: String?
+    private var pendingOutcomeFailed = false
 
     private var intentionItem: NSMenuItem!
     private var remainingItem: NSMenuItem!
@@ -234,7 +234,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if pomodoro.isRunning {
             _ = pomodoro.endEarly(at: now)
             write(LogEntry(timestamp: now, type: .pomodoroEndedEarly))
-            write(LogEntry(timestamp: now, type: .checkInNotDone))
+            write(LogEntry(timestamp: now, type: .outcomeFailed))
             stopTickLoop()
             statusItem.button?.image = MenuBarRingIcon.idle
             updateStatusTitle(text: nil)
@@ -242,7 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else if pomodoro.isResting {
             write(LogEntry(timestamp: now, type: .breakEndedEarly))
             breakHUD.dismiss()
-            flushPendingCheckIn(at: now)
+            flushPendingOutcome(at: now)
         }
 
         write(LogEntry(timestamp: now, type: .intention, intention: intention))
@@ -292,7 +292,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let now = Date()
         guard pomodoro.endEarly(at: now) else { return }
         write(LogEntry(timestamp: now, type: .pomodoroEndedEarly))
-        write(LogEntry(timestamp: now, type: .checkInNotDone))
+        write(LogEntry(timestamp: now, type: .outcomeFailed))
         stopTickLoop()
         statusItem.button?.image = MenuBarRingIcon.idle
         updateStatusTitle(text: nil)
@@ -317,8 +317,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         ScreenBorderFlash.flash()
 
-        pendingCheckInIntention = intention
-        pendingCheckInFailed = false
+        pendingOutcomeIntention = intention
+        pendingOutcomeFailed = false
 
         let breakStarted: Bool
         if settings.breaksEnabled,
@@ -338,7 +338,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 onMarkFailed: { [weak self] in self?.markPendingFailed() }
             )
         } else {
-            flushPendingCheckIn(at: date)
+            flushPendingOutcome(at: date)
             stopTickLoop()
             statusItem.button?.image = MenuBarRingIcon.idle
             updateStatusTitle(text: nil)
@@ -347,8 +347,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func markPendingFailed() {
-        guard pendingCheckInIntention != nil else { return }
-        pendingCheckInFailed = true
+        guard pendingOutcomeIntention != nil else { return }
+        pendingOutcomeFailed = true
         breakHUD.showAsFailed()
     }
 
@@ -362,7 +362,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func finishRest(at date: Date) {
-        flushPendingCheckIn(at: date)
+        flushPendingOutcome(at: date)
         breakHUD.dismiss()
         stopTickLoop()
         statusItem.button?.image = MenuBarRingIcon.idle
@@ -371,12 +371,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         showPrompt(at: date)
     }
 
-    private func flushPendingCheckIn(at date: Date) {
-        guard pendingCheckInIntention != nil else { return }
-        let type: EventType = pendingCheckInFailed ? .checkInNotDone : .checkInDone
+    private func flushPendingOutcome(at date: Date) {
+        guard pendingOutcomeIntention != nil else { return }
+        let type: EventType = pendingOutcomeFailed ? .outcomeFailed : .outcomeDone
         write(LogEntry(timestamp: date, type: type))
-        pendingCheckInIntention = nil
-        pendingCheckInFailed = false
+        pendingOutcomeIntention = nil
+        pendingOutcomeFailed = false
         refreshSummary()
         refreshTodayWindow()
     }
