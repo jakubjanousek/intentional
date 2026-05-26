@@ -9,7 +9,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var unlockMonitor: UnlockMonitor!
     private var idleMonitor: IdleMonitor!
     private var promptPanel: IntentionPromptPanel!
-    private var checkInPanel: CheckInPanel!
     private var breakHUD: BreakHUDPanel!
     private var settingsWindow: SettingsWindow!
     private var todayWindow: TodayWindow!
@@ -17,6 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pomodoro = PomodoroTimer()
     private var tickTimer: Timer?
     private var skipReminderTimer: Timer?
+    private var pendingCheckInIntention: String?
+    private var pendingCheckInFailed = false
 
     private var intentionItem: NSMenuItem!
     private var remainingItem: NSMenuItem!
@@ -42,7 +43,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         statusItem.menu = menu
 
         promptPanel = IntentionPromptPanel()
-        checkInPanel = CheckInPanel()
         breakHUD = BreakHUDPanel()
         settingsWindow = SettingsWindow()
         settingsWindow.onChange = { [weak self] in self?.settingsDidChange() }
@@ -232,34 +232,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let now = Date()
 
         if pomodoro.isRunning {
-            let previousIntention = pomodoro.currentIntention
-            endRunningPomodoroEarly(at: now)
-            if let previousIntention {
-                checkInPanel.present(intention: previousIntention) { [weak self] answer in
-                    self?.recordCheckIn(answer)
-                    self?.beginNewPomodoro(with: intention)
-                }
-                return
-            }
+            _ = pomodoro.endEarly(at: now)
+            write(LogEntry(timestamp: now, type: .pomodoroEndedEarly))
+            write(LogEntry(timestamp: now, type: .checkInNotDone))
+            stopTickLoop()
+            statusItem.button?.image = MenuBarRingIcon.idle
+            updateStatusTitle(text: nil)
+            refreshMenuVisibility()
         } else if pomodoro.isResting {
             write(LogEntry(timestamp: now, type: .breakEndedEarly))
             breakHUD.dismiss()
+            flushPendingCheckIn(at: now)
         }
 
-        beginNewPomodoro(with: intention)
-    }
-
-    private func endRunningPomodoroEarly(at now: Date) {
-        _ = pomodoro.endEarly(at: now)
-        write(LogEntry(timestamp: now, type: .pomodoroEndedEarly))
-        stopTickLoop()
-        statusItem.button?.image = MenuBarRingIcon.idle
-        updateStatusTitle(text: nil)
-        refreshMenuVisibility()
-    }
-
-    private func beginNewPomodoro(with intention: String) {
-        let now = Date()
         write(LogEntry(timestamp: now, type: .intention, intention: intention))
         pomodoro.start(intention: intention, at: now, duration: settings.pomodoroDuration)
         refreshMenuVisibility()
@@ -300,18 +285,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func markDone() {
         let now = Date()
         guard pomodoro.markDone(at: now) else { return }
-        pomodoroDidComplete(at: now, autoCheckIn: .done)
+        pomodoroDidComplete(at: now)
     }
 
     @objc private func abandon() {
         let now = Date()
         guard pomodoro.endEarly(at: now) else { return }
         write(LogEntry(timestamp: now, type: .pomodoroEndedEarly))
+        write(LogEntry(timestamp: now, type: .checkInNotDone))
         stopTickLoop()
         statusItem.button?.image = MenuBarRingIcon.idle
         updateStatusTitle(text: nil)
         refreshMenuVisibility()
-        recordCheckIn(.notDone)
+        refreshSummary()
+        refreshTodayWindow()
     }
 
     @objc private func endBreakEarly() {
@@ -321,7 +308,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         finishRest(at: now)
     }
 
-    private func pomodoroDidComplete(at date: Date, autoCheckIn: CheckInPanel.Answer? = nil) {
+    private func pomodoroDidComplete(at date: Date) {
         let intention = pomodoro.currentIntention
         write(LogEntry(timestamp: date, type: .pomodoroCompleted))
 
@@ -329,6 +316,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             NSSound(named: "Glass")?.play()
         }
         ScreenBorderFlash.flash()
+
+        pendingCheckInIntention = intention
+        pendingCheckInFailed = false
 
         let breakStarted: Bool
         if settings.breaksEnabled,
@@ -342,24 +332,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if breakStarted {
             refreshMenuVisibility()
             refreshLiveLabels(now: date)
-            breakHUD.show(remaining: settings.breakDuration) { [weak self] in
-                self?.endBreakEarly()
-            }
+            breakHUD.show(
+                remaining: settings.breakDuration,
+                onEndEarly: { [weak self] in self?.endBreakEarly() },
+                onMarkFailed: { [weak self] in self?.markPendingFailed() }
+            )
         } else {
+            flushPendingCheckIn(at: date)
             stopTickLoop()
             statusItem.button?.image = MenuBarRingIcon.idle
             updateStatusTitle(text: nil)
             refreshMenuVisibility()
         }
+    }
 
-        if let autoCheckIn {
-            recordCheckIn(autoCheckIn)
-            return
-        }
-        guard let intention else { return }
-        checkInPanel.present(intention: intention) { [weak self] answer in
-            self?.recordCheckIn(answer)
-        }
+    private func markPendingFailed() {
+        guard pendingCheckInIntention != nil else { return }
+        pendingCheckInFailed = true
+        breakHUD.showAsFailed()
     }
 
     private func restDidComplete(at date: Date) {
@@ -372,6 +362,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func finishRest(at date: Date) {
+        flushPendingCheckIn(at: date)
         breakHUD.dismiss()
         stopTickLoop()
         statusItem.button?.image = MenuBarRingIcon.idle
@@ -380,15 +371,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         showPrompt(at: date)
     }
 
-    private func recordCheckIn(_ answer: CheckInPanel.Answer) {
-        let type: EventType
-        switch answer {
-        case .done: type = .checkInDone
-        case .notDone: type = .checkInNotDone
-        case .skipped: type = .checkInSkipped
-        }
-        write(LogEntry(timestamp: Date(), type: type))
+    private func flushPendingCheckIn(at date: Date) {
+        guard pendingCheckInIntention != nil else { return }
+        let type: EventType = pendingCheckInFailed ? .checkInNotDone : .checkInDone
+        write(LogEntry(timestamp: date, type: type))
+        pendingCheckInIntention = nil
+        pendingCheckInFailed = false
         refreshSummary()
+        refreshTodayWindow()
+    }
+
+    private func refreshTodayWindow() {
         if todayWindow?.window.isVisible == true {
             todayWindow.refresh()
         }

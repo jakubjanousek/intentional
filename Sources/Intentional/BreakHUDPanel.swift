@@ -6,10 +6,13 @@ final class BreakHUDPanel: NSPanel {
     private let subtitleLabel = NSTextField(labelWithString: "step away — relax")
     private let countdownLabel = NSTextField(labelWithString: "")
     private let endButton: NSButton
+    private let failedButton: NSButton
     private var onEndEarly: (() -> Void)?
+    private var onMarkFailed: (() -> Void)?
 
     init() {
         endButton = NSButton(title: "End early", target: nil, action: nil)
+        failedButton = NSButton(title: "Failed", target: nil, action: nil)
 
         super.init(
             contentRect: NSRect(x: 0, y: 0, width: 280, height: 80),
@@ -56,12 +59,21 @@ final class BreakHUDPanel: NSPanel {
         endButton.bezelStyle = .rounded
         endButton.controlSize = .small
 
+        failedButton.target = self
+        failedButton.action = #selector(didTapFailed)
+        failedButton.bezelStyle = .rounded
+        failedButton.controlSize = .small
+
         let leftStack = NSStackView(views: [titleLabel, subtitleLabel])
         leftStack.orientation = .vertical
         leftStack.alignment = .leading
         leftStack.spacing = 2
 
-        let stack = NSStackView(views: [countdownLabel, leftStack, NSView(), endButton])
+        let buttons = NSStackView(views: [failedButton, endButton])
+        buttons.orientation = .horizontal
+        buttons.spacing = 6
+
+        let stack = NSStackView(views: [countdownLabel, leftStack, NSView(), buttons])
         stack.orientation = .horizontal
         stack.alignment = .centerY
         stack.spacing = 14
@@ -79,8 +91,14 @@ final class BreakHUDPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 
-    func show(remaining: TimeInterval, onEndEarly: @escaping () -> Void) {
+    func show(
+        remaining: TimeInterval,
+        onEndEarly: @escaping () -> Void,
+        onMarkFailed: @escaping () -> Void
+    ) {
         self.onEndEarly = onEndEarly
+        self.onMarkFailed = onMarkFailed
+        resetFailedButton()
         updateRemaining(remaining)
         positionTopCenter()
         orderFrontRegardless()
@@ -93,13 +111,28 @@ final class BreakHUDPanel: NSPanel {
         countdownLabel.stringValue = String(format: "%d:%02d", mm, ss)
     }
 
+    func showAsFailed() {
+        failedButton.title = "Marked failed"
+        failedButton.isEnabled = false
+    }
+
     func dismiss() {
         onEndEarly = nil
+        onMarkFailed = nil
         orderOut(nil)
+    }
+
+    private func resetFailedButton() {
+        failedButton.title = "Failed"
+        failedButton.isEnabled = true
     }
 
     @objc private func didTapEndEarly() {
         onEndEarly?()
+    }
+
+    @objc private func didTapFailed() {
+        onMarkFailed?()
     }
 
     private func positionTopCenter() {
