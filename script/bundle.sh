@@ -37,5 +37,20 @@ rm -rf "$(dirname "$ICONSET_DIR")"
 # Ad-hoc sign so SMAppService and Gatekeeper can identify the binary.
 codesign --force --sign - --identifier "com.jakubjanousek.intentional" "$APP"
 
+DEST="/Applications/$APP"
+echo "→ installing to $DEST"
+if pgrep -x Intentional >/dev/null; then
+    echo "   quitting running instance"
+    osascript -e 'tell application "Intentional" to quit' 2>/dev/null || true
+    # Wait briefly for graceful quit, then force.
+    for _ in 1 2 3 4 5; do
+        pgrep -x Intentional >/dev/null || break
+        sleep 0.2
+    done
+    pkill -x Intentional 2>/dev/null || true
+fi
+rm -rf "$DEST"
+cp -R "$APP" "$DEST"
+
 echo "→ done"
-echo "   $(pwd)/$APP"
+echo "   $DEST"
