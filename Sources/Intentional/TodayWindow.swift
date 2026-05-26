@@ -3,6 +3,7 @@ import AppKit
 @MainActor
 final class TodayWindow {
     let window: NSWindow
+    var onChange: (() -> Void)?
     private let log: EventLog
     private let settings: () -> Settings
 
@@ -245,7 +246,61 @@ final class TodayWindow {
         row.orientation = .horizontal
         row.alignment = .centerY
         row.spacing = 10
+        row.menu = makeContextMenu(for: item)
         return row
+    }
+
+    private func makeContextMenu(for item: TodaysIntention) -> NSMenu {
+        let menu = NSMenu()
+        let done = ClosureMenuItem(title: "Mark done") { [weak self] in
+            self?.appendOutcome(.outcomeDone)
+        }
+        done.state = item.outcome == .done ? .on : .off
+        menu.addItem(done)
+
+        let failed = ClosureMenuItem(title: "Mark failed") { [weak self] in
+            self?.appendOutcome(.outcomeFailed)
+        }
+        failed.state = item.outcome == .failed ? .on : .off
+        menu.addItem(failed)
+
+        let skipped = ClosureMenuItem(title: "Mark skipped") { [weak self] in
+            self?.appendOutcome(.outcomeSkipped)
+        }
+        skipped.state = item.outcome == .skipped ? .on : .off
+        menu.addItem(skipped)
+
+        menu.addItem(.separator())
+
+        let delete = ClosureMenuItem(title: "Delete") { [weak self] in
+            self?.deleteIntention(at: item.startedAt)
+        }
+        menu.addItem(delete)
+        return menu
+    }
+
+    private func appendOutcome(_ type: EventType) {
+        do {
+            try log.append(LogEntry(timestamp: Date(), type: type))
+        } catch {
+            NSLog("Intentional: failed to append outcome \(type.rawValue): \(error)")
+            return
+        }
+        onChange?()
+        refresh()
+    }
+
+    private func deleteIntention(at startedAt: Date) {
+        do {
+            let entries = try log.readAll()
+            let mutated = TodayLog.deleteIntention(at: startedAt, in: entries)
+            try log.rewrite(mutated)
+        } catch {
+            NSLog("Intentional: failed to delete intention: \(error)")
+            return
+        }
+        onChange?()
+        refresh()
     }
 
     private func glyphCharacter(for outcome: TodaysIntention.Outcome) -> String {
@@ -271,4 +326,18 @@ final class TodayWindow {
 
 private final class FlippedView: NSView {
     override var isFlipped: Bool { true }
+}
+
+private final class ClosureMenuItem: NSMenuItem {
+    private let handler: () -> Void
+
+    init(title: String, handler: @escaping () -> Void) {
+        self.handler = handler
+        super.init(title: title, action: #selector(invoke), keyEquivalent: "")
+        target = self
+    }
+
+    required init(coder: NSCoder) { fatalError() }
+
+    @objc private func invoke() { handler() }
 }

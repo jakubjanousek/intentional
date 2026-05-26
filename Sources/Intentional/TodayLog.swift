@@ -29,17 +29,41 @@ enum TodayLog {
         return result
     }
 
+    static func deleteIntention(at startedAt: Date, in entries: [LogEntry]) -> [LogEntry] {
+        guard let index = entries.firstIndex(where: {
+            $0.type == .intention && $0.timestamp == startedAt
+        }) else {
+            return entries
+        }
+        let outcomeTypes: Set<EventType> = [.outcomeDone, .outcomeFailed, .outcomeSkipped]
+        var indexesToRemove = [index]
+        var i = index + 1
+        while i < entries.count {
+            if entries[i].type == .intention { break }
+            if outcomeTypes.contains(entries[i].type) {
+                indexesToRemove.append(i)
+            }
+            i += 1
+        }
+        var result = entries
+        for offset in indexesToRemove.reversed() {
+            result.remove(at: offset)
+        }
+        return result
+    }
+
     private static func outcomeAfter(index: Int, in entries: [LogEntry]) -> TodaysIntention.Outcome {
+        var current: TodaysIntention.Outcome = .inProgress
         let tail = entries.suffix(from: index + 1)
         for entry in tail {
-            if entry.type == .intention { return .inProgress }
+            if entry.type == .intention { break }
             switch entry.type {
-            case .outcomeDone: return .done
-            case .outcomeFailed: return .failed
-            case .outcomeSkipped: return .skipped
+            case .outcomeDone: current = .done
+            case .outcomeFailed: current = .failed
+            case .outcomeSkipped: current = .skipped
             default: continue
             }
         }
-        return .inProgress
+        return current
     }
 }

@@ -120,6 +120,16 @@ struct EventLog {
         }
     }
 
+    func rewrite(_ entries: [LogEntry]) throws {
+        try FileManager.default.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        let body = entries.map { EventLog.format($0) }.joined(separator: "\n")
+        let text = entries.isEmpty ? "" : body + "\n"
+        try Data(text.utf8).write(to: fileURL, options: .atomic)
+    }
+
     func readAll() throws -> [LogEntry] {
         guard FileManager.default.fileExists(atPath: fileURL.path) else { return [] }
         let data = try Data(contentsOf: fileURL)

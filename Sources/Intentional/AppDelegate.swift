@@ -16,8 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var pomodoro = PomodoroTimer()
     private var tickTimer: Timer?
     private var skipReminderTimer: Timer?
-    private var pendingOutcomeIntention: String?
-    private var pendingOutcomeFailed = false
+    private var currentOutcomeIntention: String?
 
     private var intentionItem: NSMenuItem!
     private var remainingItem: NSMenuItem!
@@ -49,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         todayWindow = TodayWindow(log: log, settingsProvider: { [weak self] in
             self?.settings ?? Settings()
         })
+        todayWindow.onChange = { [weak self] in self?.refreshSummary() }
 
         applySettings()
 
@@ -242,7 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else if pomodoro.isResting {
             write(LogEntry(timestamp: now, type: .breakEndedEarly))
             breakHUD.dismiss()
-            flushPendingOutcome(at: now)
+            currentOutcomeIntention = nil
         }
 
         write(LogEntry(timestamp: now, type: .intention, intention: intention))
@@ -311,14 +311,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func pomodoroDidComplete(at date: Date) {
         let intention = pomodoro.currentIntention
         write(LogEntry(timestamp: date, type: .pomodoroCompleted))
+        write(LogEntry(timestamp: date, type: .outcomeDone))
+        currentOutcomeIntention = intention
+        refreshSummary()
+        refreshTodayWindow()
 
         if settings.pomodoroEndSoundEnabled {
             NSSound(named: "Glass")?.play()
         }
         ScreenBorderFlash.flash()
-
-        pendingOutcomeIntention = intention
-        pendingOutcomeFailed = false
 
         let breakStarted: Bool
         if settings.breaksEnabled,
@@ -335,10 +336,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             breakHUD.show(
                 remaining: settings.breakDuration,
                 onEndEarly: { [weak self] in self?.endBreakEarly() },
-                onMarkFailed: { [weak self] in self?.markPendingFailed() }
+                onMarkFailed: { [weak self] in self?.markCurrentFailed() }
             )
         } else {
-            flushPendingOutcome(at: date)
+            currentOutcomeIntention = nil
             stopTickLoop()
             statusItem.button?.image = MenuBarRingIcon.idle
             updateStatusTitle(text: nil)
@@ -346,10 +347,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    private func markPendingFailed() {
-        guard pendingOutcomeIntention != nil else { return }
-        pendingOutcomeFailed = true
+    private func markCurrentFailed() {
+        guard currentOutcomeIntention != nil else { return }
+        write(LogEntry(timestamp: Date(), type: .outcomeFailed))
         breakHUD.showAsFailed()
+        refreshSummary()
+        refreshTodayWindow()
     }
 
     private func restDidComplete(at date: Date) {
@@ -362,23 +365,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func finishRest(at date: Date) {
-        flushPendingOutcome(at: date)
+        currentOutcomeIntention = nil
         breakHUD.dismiss()
         stopTickLoop()
         statusItem.button?.image = MenuBarRingIcon.idle
         updateStatusTitle(text: nil)
         refreshMenuVisibility()
         showPrompt(at: date)
-    }
-
-    private func flushPendingOutcome(at date: Date) {
-        guard pendingOutcomeIntention != nil else { return }
-        let type: EventType = pendingOutcomeFailed ? .outcomeFailed : .outcomeDone
-        write(LogEntry(timestamp: date, type: type))
-        pendingOutcomeIntention = nil
-        pendingOutcomeFailed = false
-        refreshSummary()
-        refreshTodayWindow()
     }
 
     private func refreshTodayWindow() {

@@ -19,9 +19,8 @@ struct DailySummary {
         since anchor: Date,
         until endingAt: Date = Date()
     ) -> DailySummary {
-        let scoped = entries
-            .filter { $0.timestamp >= anchor }
-            .sorted { $0.timestamp < $1.timestamp }
+        let sorted = entries.sorted { $0.timestamp < $1.timestamp }
+        let scoped = sorted.filter { $0.timestamp >= anchor }
         let focus = pairedDuration(
             in: scoped,
             start: [.intention],
@@ -32,7 +31,7 @@ struct DailySummary {
             start: [.breakStarted],
             end: [.breakCompleted, .breakEndedEarly]
         )
-        let active = activeSeconds(in: scoped, until: endingAt)
+        let active = activeSeconds(in: sorted, since: anchor, until: endingAt)
         return DailySummary(
             intentionsSet: scoped.count { $0.type == .intention },
             intentionsDone: scoped.count { $0.type == .outcomeDone },
@@ -109,10 +108,14 @@ struct DailySummary {
         return total
     }
 
-    private static func activeSeconds(in entries: [LogEntry], until endingAt: Date) -> TimeInterval {
+    private static func activeSeconds(
+        in entries: [LogEntry],
+        since anchor: Date,
+        until endingAt: Date
+    ) -> TimeInterval {
         var total: TimeInterval = 0
-        var engagedSince: Date?
-        for entry in entries {
+        var engagedSince: Date? = wasEngaged(at: anchor, in: entries) ? anchor : nil
+        for entry in entries where entry.timestamp >= anchor {
             switch entry.type {
             case .started, .unlock, .idleEnded:
                 if engagedSince == nil { engagedSince = entry.timestamp }
@@ -129,6 +132,21 @@ struct DailySummary {
             total += endingAt.timeIntervalSince(start)
         }
         return total
+    }
+
+    private static func wasEngaged(at moment: Date, in entries: [LogEntry]) -> Bool {
+        var engaged = false
+        for entry in entries where entry.timestamp < moment {
+            switch entry.type {
+            case .started, .unlock, .idleEnded:
+                engaged = true
+            case .lock, .idleStarted:
+                engaged = false
+            default:
+                continue
+            }
+        }
+        return engaged
     }
 
     var headline: String {

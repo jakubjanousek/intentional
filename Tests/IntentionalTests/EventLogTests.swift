@@ -65,6 +65,53 @@ import Testing
     #expect(FileManager.default.fileExists(atPath: url.path))
 }
 
+@Test func rewriteReplacesFileContents() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appending(path: "intentional-test-\(UUID().uuidString).log")
+    defer { try? FileManager.default.removeItem(at: url) }
+
+    let log = EventLog(fileURL: url)
+    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 1_700_000_000), type: .unlock))
+    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 1_700_000_010), type: .lock))
+
+    try log.rewrite([
+        LogEntry(timestamp: Date(timeIntervalSince1970: 1_700_000_020), type: .started),
+    ])
+
+    let contents = try String(contentsOf: url, encoding: .utf8)
+    #expect(contents == """
+        {"ts":"2023-11-14T22:13:40Z","type":"started"}
+
+        """)
+}
+
+@Test func rewriteWithEmptyArrayLeavesEmptyFile() throws {
+    let url = FileManager.default.temporaryDirectory
+        .appending(path: "intentional-test-\(UUID().uuidString).log")
+    defer { try? FileManager.default.removeItem(at: url) }
+
+    let log = EventLog(fileURL: url)
+    try log.append(LogEntry(timestamp: Date(timeIntervalSince1970: 1_700_000_000), type: .unlock))
+    try log.rewrite([])
+
+    let contents = try String(contentsOf: url, encoding: .utf8)
+    #expect(contents.isEmpty)
+}
+
+@Test func rewriteCreatesParentDirectoryIfMissing() throws {
+    let root = FileManager.default.temporaryDirectory
+        .appending(path: "intentional-test-\(UUID().uuidString)")
+    let url = root.appending(path: "nested/events.log")
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let log = EventLog(fileURL: url)
+    try log.rewrite([
+        LogEntry(timestamp: Date(timeIntervalSince1970: 1_700_000_000), type: .started),
+    ])
+
+    #expect(FileManager.default.fileExists(atPath: url.path))
+}
+
 @Test func supportsAllEventTypes() {
     #expect(EventType.started.rawValue == "started")
     #expect(EventType.unlock.rawValue == "unlock")

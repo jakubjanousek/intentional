@@ -278,6 +278,54 @@ private let anchor = date("2026-05-24T04:00:00Z")
     #expect(summary.activeSecondsOffFocus == 30 * 60)
 }
 
+@Test func activeSecondsSeedsEngagementFromPreAnchorUnlock() {
+    // User unlocked the night before; daily anchor cuts mid-session.
+    // The active stretch from anchor → first lock-after-anchor must still count.
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-23T20:00:00Z"), type: .unlock),
+        LogEntry(timestamp: date("2026-05-24T05:00:00Z"), type: .lock),
+    ]
+    let summary = DailySummary.compute(
+        from: entries,
+        since: anchor,
+        until: date("2026-05-24T06:00:00Z")
+    )
+    // anchor (04:00) → lock (05:00) = 60 min active, no focus → 60 min off-focus
+    #expect(summary.activeSecondsOffFocus == 60 * 60)
+}
+
+@Test func activeSecondsIgnoresPreAnchorLockedState() {
+    // If the user was locked when the anchor passed, don't seed engagement.
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-23T20:00:00Z"), type: .unlock),
+        LogEntry(timestamp: date("2026-05-23T21:00:00Z"), type: .lock),
+        LogEntry(timestamp: date("2026-05-24T07:00:00Z"), type: .unlock),
+        LogEntry(timestamp: date("2026-05-24T08:00:00Z"), type: .lock),
+    ]
+    let summary = DailySummary.compute(
+        from: entries,
+        since: anchor,
+        until: date("2026-05-24T09:00:00Z")
+    )
+    // Only the 07:00-08:00 span counts: 60 min off-focus.
+    #expect(summary.activeSecondsOffFocus == 60 * 60)
+}
+
+@Test func activeSecondsSeedsEngagementWhenOnlyPostAnchorLockExists() {
+    // No unlock after the anchor, just a lock — user must have been engaged at anchor.
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-23T22:00:00Z"), type: .unlock),
+        LogEntry(timestamp: date("2026-05-24T05:30:00Z"), type: .lock),
+    ]
+    let summary = DailySummary.compute(
+        from: entries,
+        since: anchor,
+        until: date("2026-05-24T06:00:00Z")
+    )
+    // anchor 04:00 → lock 05:30 = 90 min off-focus.
+    #expect(summary.activeSecondsOffFocus == 90 * 60)
+}
+
 @Test func activeSecondsSortsOutOfOrderEntries() {
     // IdleMonitor stamps idleStarted at when input last occurred,
     // which can predate the append-position of the event.
