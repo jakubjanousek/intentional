@@ -29,6 +29,34 @@ enum TodayLog {
         return result
     }
 
+    static func setOutcome(
+        intentionAt startedAt: Date,
+        to type: EventType,
+        timestamp: Date,
+        in entries: [LogEntry]
+    ) -> [LogEntry] {
+        guard let index = entries.firstIndex(where: {
+            $0.type == .intention && $0.timestamp == startedAt
+        }) else {
+            return entries
+        }
+        let outcomeTypes: Set<EventType> = [.outcomeDone, .outcomeFailed, .outcomeSkipped]
+        var result = entries
+        var i = index + 1
+        var insertAt = index + 1
+        while i < result.count {
+            if result[i].type == .intention { break }
+            if outcomeTypes.contains(result[i].type) {
+                result.remove(at: i)
+                continue
+            }
+            i += 1
+            insertAt = i
+        }
+        result.insert(LogEntry(timestamp: timestamp, type: type), at: insertAt)
+        return result
+    }
+
     static func deleteIntention(at startedAt: Date, in entries: [LogEntry]) -> [LogEntry] {
         guard let index = entries.firstIndex(where: {
             $0.type == .intention && $0.timestamp == startedAt

@@ -155,6 +155,86 @@ private let anchor = date("2026-05-24T04:00:00Z")
     #expect(types.contains(.breakCompleted))
 }
 
+@Test func setOutcomeForOlderOngoingIntentionDoesNotLeakIntoLaterOne() {
+    // The original bug: user marks an older still-ongoing intention as done,
+    // but a newer intention has been logged since. Appending at end would
+    // attribute the outcome to the newer intention; setOutcome must insert
+    // between the target intention and the next one.
+    let oldStart = date("2026-05-24T09:00:00Z")
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: oldStart, type: .intention, intention: "old ongoing"),
+        LogEntry(timestamp: date("2026-05-24T10:00:00Z"), type: .intention, intention: "current"),
+    ]
+    let now = date("2026-05-24T10:30:00Z")
+    let result = TodayLog.setOutcome(
+        intentionAt: oldStart,
+        to: .outcomeDone,
+        timestamp: now,
+        in: entries
+    )
+    let items = TodayLog.intentions(from: result, since: anchor)
+    #expect(items.count == 2)
+    #expect(items[0].intention == "old ongoing")
+    #expect(items[0].outcome == .done)
+    #expect(items[1].intention == "current")
+    #expect(items[1].outcome == .inProgress)
+}
+
+@Test func setOutcomeReplacesPriorOutcomeForSameIntention() {
+    let start = date("2026-05-24T09:00:00Z")
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: start, type: .intention, intention: "x"),
+        LogEntry(timestamp: date("2026-05-24T09:25:00Z"), type: .pomodoroCompleted),
+        LogEntry(timestamp: date("2026-05-24T09:25:01Z"), type: .outcomeDone),
+    ]
+    let result = TodayLog.setOutcome(
+        intentionAt: start,
+        to: .outcomeFailed,
+        timestamp: date("2026-05-24T09:30:00Z"),
+        in: entries
+    )
+    let outcomes = result.filter {
+        $0.type == .outcomeDone || $0.type == .outcomeFailed || $0.type == .outcomeSkipped
+    }
+    #expect(outcomes.count == 1)
+    #expect(outcomes[0].type == .outcomeFailed)
+    // Time-tracking events survive.
+    #expect(result.contains { $0.type == .pomodoroCompleted })
+    let items = TodayLog.intentions(from: result, since: anchor)
+    #expect(items[0].outcome == .failed)
+}
+
+@Test func setOutcomeIsNoOpWhenTimestampDoesNotMatch() {
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: date("2026-05-24T09:00:00Z"), type: .intention, intention: "x"),
+    ]
+    let result = TodayLog.setOutcome(
+        intentionAt: date("2026-05-24T11:00:00Z"),
+        to: .outcomeDone,
+        timestamp: date("2026-05-24T11:30:00Z"),
+        in: entries
+    )
+    #expect(result.count == entries.count)
+    #expect(!result.contains { $0.type == .outcomeDone })
+}
+
+@Test func setOutcomeForLastIntentionInsertsAfterTrailingEvents() {
+    let start = date("2026-05-24T09:00:00Z")
+    let entries: [LogEntry] = [
+        LogEntry(timestamp: start, type: .intention, intention: "x"),
+        LogEntry(timestamp: date("2026-05-24T09:25:00Z"), type: .pomodoroCompleted),
+    ]
+    let result = TodayLog.setOutcome(
+        intentionAt: start,
+        to: .outcomeDone,
+        timestamp: date("2026-05-24T09:26:00Z"),
+        in: entries
+    )
+    #expect(result.last?.type == .outcomeDone)
+    let items = TodayLog.intentions(from: result, since: anchor)
+    #expect(items[0].outcome == .done)
+}
+
 @Test func ignoresOutcomesThatHaveNoPrecedingIntention() {
     let entries: [LogEntry] = [
         LogEntry(timestamp: date("2026-05-24T09:00:00Z"), type: .outcomeDone),

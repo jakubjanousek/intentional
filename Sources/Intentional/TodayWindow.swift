@@ -252,20 +252,21 @@ final class TodayWindow {
 
     private func makeContextMenu(for item: TodaysIntention) -> NSMenu {
         let menu = NSMenu()
+        let startedAt = item.startedAt
         let done = ClosureMenuItem(title: "Mark done") { [weak self] in
-            self?.appendOutcome(.outcomeDone)
+            self?.setOutcome(.outcomeDone, forIntentionAt: startedAt)
         }
         done.state = item.outcome == .done ? .on : .off
         menu.addItem(done)
 
         let failed = ClosureMenuItem(title: "Mark failed") { [weak self] in
-            self?.appendOutcome(.outcomeFailed)
+            self?.setOutcome(.outcomeFailed, forIntentionAt: startedAt)
         }
         failed.state = item.outcome == .failed ? .on : .off
         menu.addItem(failed)
 
         let skipped = ClosureMenuItem(title: "Mark skipped") { [weak self] in
-            self?.appendOutcome(.outcomeSkipped)
+            self?.setOutcome(.outcomeSkipped, forIntentionAt: startedAt)
         }
         skipped.state = item.outcome == .skipped ? .on : .off
         menu.addItem(skipped)
@@ -279,11 +280,18 @@ final class TodayWindow {
         return menu
     }
 
-    private func appendOutcome(_ type: EventType) {
+    private func setOutcome(_ type: EventType, forIntentionAt startedAt: Date) {
         do {
-            try log.append(LogEntry(timestamp: Date(), type: type))
+            let entries = try log.readAll()
+            let mutated = TodayLog.setOutcome(
+                intentionAt: startedAt,
+                to: type,
+                timestamp: Date(),
+                in: entries
+            )
+            try log.rewrite(mutated)
         } catch {
-            NSLog("Intentional: failed to append outcome \(type.rawValue): \(error)")
+            NSLog("Intentional: failed to set outcome \(type.rawValue): \(error)")
             return
         }
         onChange?()
